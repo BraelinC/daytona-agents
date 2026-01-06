@@ -1,12 +1,14 @@
 {
-  "name": "web",
+  "name": "daytona-agents",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "convex": "bunx convex dev",
+    "convex:deploy": "bunx convex deploy"
   },
   "dependencies": {
     "convex": "^1.31.2",
@@ -25,10 +27,6 @@
     "tailwindcss": "^4",
     "typescript": "^5"
   },
-  "ignoreScripts": [
-    "sharp",
-    "unrs-resolver"
-  ],
   "trustedDependencies": [
     "sharp",
     "unrs-resolver"
