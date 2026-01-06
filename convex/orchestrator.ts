@@ -102,7 +102,7 @@ export const sendPrompt = action({
     const sandbox = await daytona.get(orchestrator.sandboxId);
 
     // Click to focus OpenCode terminal
-    await sandbox.computerUse.mouse.click({ x: 500, y: 350, button: "left" });
+    await sandbox.computerUse.mouse.click(500, 350, "left");
     await new Promise((resolve) => setTimeout(resolve, 300));
 
     // Type the prompt

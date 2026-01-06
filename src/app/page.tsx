@@ -85,8 +85,7 @@ export default function Home() {
       <header className="px-6 py-4 bg-[#161b22] border-b border-[#30363d] flex items-center justify-between">
         <h1 className="text-xl font-semibold text-[#f0f6fc]">Daytona Agents</h1>
         <span className="text-sm text-[#8b949e]">
-          {orchestrator ? "1 orchestrator" : "No orchestrator"} + {workerCount}{" "}
-          worker(s)
+          {orchestrator ? "1 orchestrator" : "No orchestrator"} + {workerCount} worker(s)
         </span>
       </header>
 

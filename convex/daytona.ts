@@ -42,16 +42,14 @@ export const createSandbox = action({
     await new Promise((resolve) => setTimeout(resolve, 5000));
 
     // Install OpenCode
-    await sandbox.process.exec("npm install -g opencode-ai@latest", {
-      timeout: 180,
-    });
+    await sandbox.process.executeCommand("npm install -g opencode-ai@latest");
 
     // Open terminal with Ctrl+Alt+T
     await sandbox.computerUse.keyboard.hotkey("ctrl+alt+t");
     await new Promise((resolve) => setTimeout(resolve, 3000));
 
     // Click to focus terminal
-    await sandbox.computerUse.mouse.click({ x: 500, y: 350, button: "left" });
+    await sandbox.computerUse.mouse.click(500, 350, "left");
     await new Promise((resolve) => setTimeout(resolve, 500));
 
     // Type opencode
@@ -105,8 +103,9 @@ export const stopSandbox = action({
       target: process.env.DAYTONA_TARGET || "us",
     });
 
-    // Delete sandbox
-    await daytona.delete(args.sandboxId);
+    // Get and delete sandbox
+    const sandbox = await daytona.get(args.sandboxId);
+    await sandbox.delete();
 
     // Update status in Convex
     await ctx.runMutation(api.sandboxes.stop, { id: args.convexId });

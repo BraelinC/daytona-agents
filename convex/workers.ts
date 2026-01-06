@@ -40,19 +40,18 @@ export const cloneRepo = action({
     }
 
     // Import Daytona SDK
-    const { Daytona, DaytonaConfig } = await import("daytona-sdk");
+    const { Daytona } = await import("@daytonaio/sdk");
 
     const apiKey = process.env.DAYTONA_API_KEY;
     if (!apiKey) {
       throw new Error("DAYTONA_API_KEY not set");
     }
 
-    const config = new DaytonaConfig({
+    const daytona = new Daytona({
       apiKey,
       apiUrl: process.env.DAYTONA_API_URL || "https://app.daytona.io/api",
       target: process.env.DAYTONA_TARGET || "us",
     });
-    const daytona = new Daytona(config);
 
     // Get the sandbox
     const sandbox = await daytona.get(worker.sandboxId);
@@ -62,10 +61,8 @@ export const cloneRepo = action({
     const repoPath = `/home/daytona/repos/${repoName}`;
 
     // Create repos directory and clone
-    await sandbox.process.exec("mkdir -p /home/daytona/repos", { timeout: 30 });
-    await sandbox.process.exec(`git clone ${args.repoUrl} ${repoPath}`, {
-      timeout: 120,
-    });
+    await sandbox.process.executeCommand("mkdir -p /home/daytona/repos", undefined, undefined, 30);
+    await sandbox.process.executeCommand(`git clone ${args.repoUrl} ${repoPath}`, undefined, undefined, 120);
 
     // Update the worker record with repo info
     await ctx.runMutation(api.sandboxes.updateRepo, {
@@ -95,19 +92,18 @@ export const sendPrompt = action({
     }
 
     // Import Daytona SDK
-    const { Daytona, DaytonaConfig } = await import("daytona-sdk");
+    const { Daytona } = await import("@daytonaio/sdk");
 
     const apiKey = process.env.DAYTONA_API_KEY;
     if (!apiKey) {
       throw new Error("DAYTONA_API_KEY not set");
     }
 
-    const config = new DaytonaConfig({
+    const daytona = new Daytona({
       apiKey,
       apiUrl: process.env.DAYTONA_API_URL || "https://app.daytona.io/api",
       target: process.env.DAYTONA_TARGET || "us",
     });
-    const daytona = new Daytona(config);
 
     // Get the sandbox
     const sandbox = await daytona.get(worker.sandboxId);
@@ -115,7 +111,7 @@ export const sendPrompt = action({
     // If there's a repo, cd into it first
     if (worker.repoPath) {
       // Click to focus terminal
-      await sandbox.computerUse.mouse.click({ x: 500, y: 350, button: "left" });
+      await sandbox.computerUse.mouse.click(500, 350, "left");
       await new Promise((resolve) => setTimeout(resolve, 300));
 
       // Type cd command
@@ -126,7 +122,7 @@ export const sendPrompt = action({
     }
 
     // Click to focus OpenCode terminal
-    await sandbox.computerUse.mouse.click({ x: 500, y: 350, button: "left" });
+    await sandbox.computerUse.mouse.click(500, 350, "left");
     await new Promise((resolve) => setTimeout(resolve, 300));
 
     // Type the prompt
