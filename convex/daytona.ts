@@ -62,8 +62,16 @@ export const createSandbox = action({
     const vncUrl = preview.url || String(preview);
     const vncToken = preview.token || null;
 
+    // Debug logging
+    console.log("=== VNC URL DEBUG ===");
+    console.log("preview object:", JSON.stringify(preview));
+    console.log("vncUrl (raw):", vncUrl);
+    console.log("vncToken:", vncToken);
+
     // Store base URL without vnc.html (the page will construct the proper URLs)
     const baseUrl = vncUrl.endsWith("/") ? vncUrl.slice(0, -1) : vncUrl;
+    console.log("baseUrl (stored):", baseUrl);
+    console.log("=====================");
 
     // Store in Convex database
     const convexId = await ctx.runMutation(api.sandboxes.create, {
