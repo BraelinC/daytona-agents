@@ -32,12 +32,7 @@ function VNCViewer() {
         id="status"
         className="fixed top-2.5 left-2.5 bg-black/70 text-green-500 px-4 py-2 rounded font-mono text-sm z-50"
       >
-        Connecting... (check console for debug)
-      </div>
-      {/* Debug display */}
-      <div className="fixed bottom-2.5 left-2.5 bg-black/70 text-yellow-400 px-4 py-2 rounded font-mono text-xs z-50 max-w-md break-all">
-        URL: {url}<br/>
-        WS: {wsUrl}
+        Connecting...
       </div>
       <div id="screen" className="w-full h-full" />
 
