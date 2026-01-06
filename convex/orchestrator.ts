@@ -85,19 +85,18 @@ export const sendPrompt = action({
     }
 
     // Import Daytona SDK
-    const { Daytona, DaytonaConfig } = await import("daytona-sdk");
+    const { Daytona } = await import("@daytonaio/sdk");
 
     const apiKey = process.env.DAYTONA_API_KEY;
     if (!apiKey) {
       throw new Error("DAYTONA_API_KEY not set");
     }
 
-    const config = new DaytonaConfig({
+    const daytona = new Daytona({
       apiKey,
       apiUrl: process.env.DAYTONA_API_URL || "https://app.daytona.io/api",
       target: process.env.DAYTONA_TARGET || "us",
     });
-    const daytona = new Daytona(config);
 
     // Get the sandbox
     const sandbox = await daytona.get(orchestrator.sandboxId);

@@ -17,27 +17,23 @@ export const createSandbox = action({
   }> => {
     const role = args.role || "worker";
 
-    // Dynamic import of daytona-sdk (runs in Node.js)
-    const { Daytona, DaytonaConfig, CreateSandboxBaseParams } = await import(
-      "daytona-sdk"
-    );
+    // Dynamic import of @daytonaio/sdk (runs in Node.js)
+    const { Daytona } = await import("@daytonaio/sdk");
 
     const apiKey = process.env.DAYTONA_API_KEY;
     if (!apiKey) {
       throw new Error("DAYTONA_API_KEY environment variable not set");
     }
 
-    // Initialize Daytona client
-    const config = new DaytonaConfig({
+    // Initialize Daytona client with config object
+    const daytona = new Daytona({
       apiKey,
       apiUrl: process.env.DAYTONA_API_URL || "https://app.daytona.io/api",
       target: process.env.DAYTONA_TARGET || "us",
     });
-    const daytona = new Daytona(config);
 
     // Create sandbox
-    const params = new CreateSandboxBaseParams({ public: true });
-    const sandbox = await daytona.create(params);
+    const sandbox = await daytona.create();
 
     // Start VNC desktop
     await sandbox.computerUse.start();
@@ -96,19 +92,18 @@ export const stopSandbox = action({
     convexId: v.id("sandboxes"),
   },
   handler: async (ctx, args) => {
-    const { Daytona, DaytonaConfig } = await import("daytona-sdk");
+    const { Daytona } = await import("@daytonaio/sdk");
 
     const apiKey = process.env.DAYTONA_API_KEY;
     if (!apiKey) {
       throw new Error("DAYTONA_API_KEY environment variable not set");
     }
 
-    const config = new DaytonaConfig({
+    const daytona = new Daytona({
       apiKey,
       apiUrl: process.env.DAYTONA_API_URL || "https://app.daytona.io/api",
       target: process.env.DAYTONA_TARGET || "us",
     });
-    const daytona = new Daytona(config);
 
     // Delete sandbox
     await daytona.delete(args.sandboxId);
