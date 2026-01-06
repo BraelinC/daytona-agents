@@ -153,8 +153,8 @@ export default function Home() {
                   <a
                     href={
                       orchestrator.vncToken
-                        ? `${orchestrator.vncUrl}?token=${orchestrator.vncToken}`
-                        : orchestrator.vncUrl
+                        ? `${orchestrator.vncUrl}/vnc.html?token=${orchestrator.vncToken}`
+                        : `${orchestrator.vncUrl}/vnc.html`
                     }
                     target="_blank"
                     rel="noopener noreferrer"
@@ -240,8 +240,8 @@ export default function Home() {
                       <a
                         href={
                           worker.vncToken
-                            ? `${worker.vncUrl}?token=${worker.vncToken}`
-                            : worker.vncUrl
+                            ? `${worker.vncUrl}/vnc.html?token=${worker.vncToken}`
+                            : `${worker.vncUrl}/vnc.html`
                         }
                         target="_blank"
                         rel="noopener noreferrer"
