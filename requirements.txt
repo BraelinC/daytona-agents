@@ -1,0 +1,2 @@
+daytona-sdk
+python-dotenv
