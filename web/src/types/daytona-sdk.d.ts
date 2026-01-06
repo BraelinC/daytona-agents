@@ -14,6 +14,7 @@ declare module "daytona-sdk" {
   export class Daytona {
     constructor(config: DaytonaConfig);
     create(params: CreateSandboxBaseParams): Promise<Sandbox>;
+    get(sandboxId: string): Promise<Sandbox>;
     delete(sandboxId: string): Promise<void>;
   }
 

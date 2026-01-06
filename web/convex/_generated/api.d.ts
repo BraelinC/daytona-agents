@@ -9,7 +9,9 @@
  */
 
 import type * as daytona from "../daytona.js";
+import type * as orchestrator from "../orchestrator.js";
 import type * as sandboxes from "../sandboxes.js";
+import type * as workers from "../workers.js";
 
 import type {
   ApiFromModules,
@@ -19,7 +21,9 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   daytona: typeof daytona;
+  orchestrator: typeof orchestrator;
   sandboxes: typeof sandboxes;
+  workers: typeof workers;
 }>;
 
 /**

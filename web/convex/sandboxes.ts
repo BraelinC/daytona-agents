@@ -13,6 +13,32 @@ export const list = query({
   },
 });
 
+// Get orchestrator sandbox
+export const getOrchestrator = query({
+  args: {},
+  handler: async (ctx) => {
+    const orchestrators = await ctx.db
+      .query("sandboxes")
+      .withIndex("by_role", (q) => q.eq("role", "orchestrator"))
+      .filter((q) => q.neq(q.field("status"), "stopped"))
+      .collect();
+    return orchestrators[0] || null;
+  },
+});
+
+// Get all worker sandboxes
+export const listWorkers = query({
+  args: {},
+  handler: async (ctx) => {
+    return await ctx.db
+      .query("sandboxes")
+      .withIndex("by_role", (q) => q.eq("role", "worker"))
+      .filter((q) => q.neq(q.field("status"), "stopped"))
+      .order("desc")
+      .collect();
+  },
+});
+
 // Get a single sandbox by ID
 export const get = query({
   args: { id: v.id("sandboxes") },
@@ -27,6 +53,9 @@ export const create = mutation({
     sandboxId: v.string(),
     vncUrl: v.string(),
     vncToken: v.optional(v.string()),
+    role: v.string(),
+    repoUrl: v.optional(v.string()),
+    repoPath: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     return await ctx.db.insert("sandboxes", {
@@ -34,6 +63,9 @@ export const create = mutation({
       vncUrl: args.vncUrl,
       vncToken: args.vncToken,
       status: "running",
+      role: args.role,
+      repoUrl: args.repoUrl,
+      repoPath: args.repoPath,
       createdAt: Date.now(),
     });
   },
@@ -55,5 +87,20 @@ export const stop = mutation({
   args: { id: v.id("sandboxes") },
   handler: async (ctx, args) => {
     await ctx.db.patch(args.id, { status: "stopped" });
+  },
+});
+
+// Update sandbox repo info
+export const updateRepo = mutation({
+  args: {
+    id: v.id("sandboxes"),
+    repoUrl: v.string(),
+    repoPath: v.string(),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.id, {
+      repoUrl: args.repoUrl,
+      repoPath: args.repoPath,
+    });
   },
 });

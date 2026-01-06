@@ -6,13 +6,17 @@ import { api } from "./_generated/api";
 
 // Create a new Daytona sandbox with VNC desktop and OpenCode
 export const createSandbox = action({
-  args: {},
-  handler: async (ctx): Promise<{
+  args: {
+    role: v.optional(v.string()), // "orchestrator" | "worker", defaults to "worker"
+  },
+  handler: async (ctx, args): Promise<{
     sandboxId: string;
     vncUrl: string;
     vncToken: string | null;
     convexId: string;
   }> => {
+    const role = args.role || "worker";
+
     // Dynamic import of daytona-sdk (runs in Node.js)
     const { Daytona, DaytonaConfig, CreateSandboxBaseParams } = await import(
       "daytona-sdk"
@@ -73,6 +77,7 @@ export const createSandbox = action({
         ? `${vncUrl}vnc.html`
         : `${vncUrl}/vnc.html`,
       vncToken: vncToken ?? undefined,
+      role,
     });
 
     return {

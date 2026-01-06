@@ -7,8 +7,13 @@ export default defineSchema({
     vncUrl: v.string(),
     vncToken: v.optional(v.string()),
     status: v.string(), // "creating" | "running" | "stopped"
+    role: v.string(), // "orchestrator" | "worker"
+    repoUrl: v.optional(v.string()),
+    repoPath: v.optional(v.string()),
     createdAt: v.number(),
-  }).index("by_status", ["status"]),
+  })
+    .index("by_status", ["status"])
+    .index("by_role", ["role"]),
 
   results: defineTable({
     sandboxId: v.string(),
