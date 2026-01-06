@@ -2,7 +2,7 @@
 
 import { useQuery, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Id } from "../../convex/_generated/dataModel";
 
 export default function Home() {
@@ -79,6 +79,18 @@ export default function Home() {
 
   const workerCount = workers?.length ?? 0;
 
+  // Debug logging
+  useEffect(() => {
+    if (orchestrator) {
+      console.log("=== VNC DEBUG ===");
+      console.log("orchestrator.vncUrl:", orchestrator.vncUrl);
+      console.log("orchestrator.vncToken:", orchestrator.vncToken);
+      const iframeSrc = `/vnc?url=${encodeURIComponent(orchestrator.vncUrl)}&token=${encodeURIComponent(orchestrator.vncToken || "")}`;
+      console.log("iframe src:", iframeSrc);
+      console.log("=================");
+    }
+  }, [orchestrator]);
+
   return (
     <div className="min-h-screen bg-[#0d1117] text-[#c9d1d9]">
       {/* Header */}
@@ -140,10 +152,6 @@ export default function Home() {
 
           {orchestrator ? (
             <div className="border border-[#30363d] rounded-lg overflow-hidden bg-[#161b22]">
-              {/* Debug: Log the VNC URL */}
-              {console.log("DEBUG orchestrator.vncUrl:", orchestrator.vncUrl)}
-              {console.log("DEBUG orchestrator.vncToken:", orchestrator.vncToken)}
-              {console.log("DEBUG iframe src:", `/vnc?url=${encodeURIComponent(orchestrator.vncUrl)}&token=${encodeURIComponent(orchestrator.vncToken || "")}`)}
               <div className="px-3 py-2 bg-[#21262d] flex justify-between items-center text-sm">
                 <div className="flex items-center gap-2">
                   <span className="px-2 py-0.5 bg-[#1f6feb] text-white text-xs rounded">
