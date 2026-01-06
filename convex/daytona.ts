@@ -3,6 +3,7 @@
 import { action } from "./_generated/server";
 import { v } from "convex/values";
 import { api } from "./_generated/api";
+import { Daytona } from "@daytonaio/sdk";
 
 // Create a new Daytona sandbox with VNC desktop and OpenCode
 export const createSandbox = action({
@@ -16,9 +17,6 @@ export const createSandbox = action({
     convexId: string;
   }> => {
     const role = args.role || "worker";
-
-    // Dynamic import of @daytonaio/sdk (runs in Node.js)
-    const { Daytona } = await import("@daytonaio/sdk");
 
     const apiKey = process.env.DAYTONA_API_KEY;
     if (!apiKey) {
@@ -90,8 +88,6 @@ export const stopSandbox = action({
     convexId: v.id("sandboxes"),
   },
   handler: async (ctx, args) => {
-    const { Daytona } = await import("@daytonaio/sdk");
-
     const apiKey = process.env.DAYTONA_API_KEY;
     if (!apiKey) {
       throw new Error("DAYTONA_API_KEY environment variable not set");

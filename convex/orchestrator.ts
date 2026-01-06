@@ -3,6 +3,7 @@
 import { action } from "./_generated/server";
 import { v } from "convex/values";
 import { api } from "./_generated/api";
+import { Daytona } from "@daytonaio/sdk";
 
 // System prompt for the orchestrator OpenCode instance
 const ORCHESTRATOR_SYSTEM_PROMPT = `You are an orchestrator agent that manages worker sandboxes for code tasks.
@@ -83,9 +84,6 @@ export const sendPrompt = action({
     if (!orchestrator) {
       throw new Error("Orchestrator not initialized. Call setup first.");
     }
-
-    // Import Daytona SDK
-    const { Daytona } = await import("@daytonaio/sdk");
 
     const apiKey = process.env.DAYTONA_API_KEY;
     if (!apiKey) {
