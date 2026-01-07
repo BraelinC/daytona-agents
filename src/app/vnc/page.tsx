@@ -17,7 +17,9 @@ function VNCViewer() {
   }
 
   // Build WebSocket URL from HTTP URL
-  const wsBase = url.replace("https://", "wss://").replace("http://", "ws://").replace(/\/$/, "");
+  // Daytona returns https:// but actually uses http:// - convert to ws:// (not wss://)
+  const httpUrl = url.replace("https://", "http://");
+  const wsBase = httpUrl.replace("http://", "ws://").replace(/\/$/, "");
   const wsUrl = `${wsBase}/websockify${token ? `?token=${token}` : ""}`;
 
   // Debug logging
