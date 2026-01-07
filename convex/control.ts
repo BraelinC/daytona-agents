@@ -50,10 +50,10 @@ export const takeScreenshot = action({
         showCursor: args.showCursor ?? true,
       });
       return {
-        image: result.base64,
+        image: (result as any).screenshot || "",
         format: "jpeg",
-        width: result.width,
-        height: result.height,
+        cursorPosition: (result as any).cursorPosition,
+        sizeBytes: (result as any).sizeBytes,
       };
     }
 
@@ -61,8 +61,10 @@ export const takeScreenshot = action({
       args.showCursor ?? true
     );
     return {
-      image: result.base64,
+      image: (result as any).screenshot || "",
       format: "png",
+      cursorPosition: (result as any).cursorPosition,
+      sizeBytes: (result as any).sizeBytes,
     };
   },
 });
@@ -307,10 +309,10 @@ export const gitClone = action({
 
     // Extract repo name from URL for default path
     const repoName = args.repoUrl.split("/").pop()?.replace(".git", "") || "repo";
-    const targetPath = args.targetPath || `/home/user/projects/${repoName}`;
+    const targetPath = args.targetPath || `/home/daytona/projects/${repoName}`;
 
     // Create projects directory if needed
-    await sandbox.process.executeCommand("mkdir -p /home/user/projects");
+    await sandbox.process.executeCommand("mkdir -p /home/daytona/projects");
 
     // Build clone command
     let cloneCmd = `git clone ${args.repoUrl}`;

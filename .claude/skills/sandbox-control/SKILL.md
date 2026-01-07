@@ -18,9 +18,26 @@ export CONVEX_SITE_URL="https://calculating-hummingbird-542.convex.site"
 
 All endpoints accept POST requests with JSON body containing `sandboxId` plus operation-specific parameters.
 
-### Take Screenshot
+### Take Screenshot (Store in Convex - Recommended)
 
-Capture the current state of the sandbox desktop.
+Capture screenshot and store in Convex (saves sandbox disk space).
+
+```bash
+curl -X POST "$CONVEX_SITE_URL/api/sandbox/screenshot/store" \
+  -H "Content-Type: application/json" \
+  -d '{"sandboxId": "SANDBOX_ID", "quality": 70}'
+```
+
+**Parameters:**
+- `sandboxId` (required): The Daytona sandbox ID
+- `compressed` (optional): Use JPEG compression (default: true)
+- `quality` (optional): JPEG quality 1-100 (default: 70)
+
+**Returns:** `{"url": "https://...", "storageId": "...", "format": "jpeg", "sizeBytes": 54257}`
+
+### Take Screenshot (Base64 - Legacy)
+
+Returns base64 directly (uses more bandwidth, doesn't persist).
 
 ```bash
 curl -X POST "$CONVEX_SITE_URL/api/sandbox/screenshot" \
@@ -28,14 +45,25 @@ curl -X POST "$CONVEX_SITE_URL/api/sandbox/screenshot" \
   -d '{"sandboxId": "SANDBOX_ID", "compressed": true, "quality": 80}'
 ```
 
-**Parameters:**
-- `sandboxId` (required): The Daytona sandbox ID
-- `compressed` (optional): Use JPEG compression (default: false = PNG)
-- `quality` (optional): JPEG quality 1-100 (default: 80)
-- `scale` (optional): Scale factor 0.0-1.0 (default: 1.0)
-- `showCursor` (optional): Include cursor in screenshot (default: true)
+**Returns:** `{"image": "base64...", "format": "jpeg|png"}`
 
-**Returns:** `{"image": "base64...", "format": "jpeg|png", "width": 1920, "height": 1080}`
+### Get Latest Stored Screenshot
+
+```bash
+curl -X POST "$CONVEX_SITE_URL/api/sandbox/screenshot/latest" \
+  -H "Content-Type: application/json" \
+  -d '{"sandboxId": "SANDBOX_ID"}'
+```
+
+### Cleanup Old Screenshots
+
+Delete old screenshots, keep last N (default 10).
+
+```bash
+curl -X POST "$CONVEX_SITE_URL/api/sandbox/screenshots/cleanup" \
+  -H "Content-Type: application/json" \
+  -d '{"sandboxId": "SANDBOX_ID", "keepLast": 10}'
+```
 
 ### Execute Command
 
@@ -191,3 +219,16 @@ When interacting with a sandbox GUI:
 - For text input, click to focus the field first
 - Use `execute` for terminal operations rather than GUI when possible
 - Allow time for UI to update between actions (take screenshot to verify)
+
+## Known Constraints
+
+⚠️ CONSTRAINT: Default sandbox has only 1GB RAM - large npm/bun installs will be killed (OOM).
+- For monorepo projects, request 2-4GB RAM sandbox
+
+⚠️ CONSTRAINT: Tier 1-2 have restricted network (GitHub, npm, pip, Anthropic only).
+- For full web browsing, need Tier 3+
+
+⚠️ CONSTRAINT: The Daytona SDK returns screenshot data in `result.screenshot` property.
+- NOT `result.base64`, `result.image`, or `result.data`
+
+✅ BEST PRACTICE: Use `keyboard.press("m", ["ctrl"])` for Enter in terminals (Return key doesn't work in Xvfb).

@@ -399,6 +399,101 @@ http.route({
 });
 
 // ============================================
+// SCREENSHOT STORAGE (saves to Convex, not sandbox disk)
+// ============================================
+
+http.route({
+  path: "/api/sandbox/screenshot/store",
+  method: "OPTIONS",
+  handler: httpAction(async () => new Response(null, { status: 204, headers: corsHeaders })),
+});
+
+http.route({
+  path: "/api/sandbox/screenshot/store",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    try {
+      const body = await request.json();
+      const result = await ctx.runAction(api.screenshotActions.takeAndStore, {
+        sandboxId: body.sandboxId,
+        compressed: body.compressed,
+        quality: body.quality,
+      });
+      return jsonResponse(result);
+    } catch (error) {
+      return errorResponse((error as Error).message);
+    }
+  }),
+});
+
+http.route({
+  path: "/api/sandbox/screenshots",
+  method: "OPTIONS",
+  handler: httpAction(async () => new Response(null, { status: 204, headers: corsHeaders })),
+});
+
+http.route({
+  path: "/api/sandbox/screenshots",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    try {
+      const body = await request.json();
+      const screenshots = await ctx.runQuery(api.screenshots.listBySandbox, {
+        sandboxId: body.sandboxId,
+      });
+      return jsonResponse({ screenshots });
+    } catch (error) {
+      return errorResponse((error as Error).message);
+    }
+  }),
+});
+
+http.route({
+  path: "/api/sandbox/screenshot/latest",
+  method: "OPTIONS",
+  handler: httpAction(async () => new Response(null, { status: 204, headers: corsHeaders })),
+});
+
+http.route({
+  path: "/api/sandbox/screenshot/latest",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    try {
+      const body = await request.json();
+      const screenshot = await ctx.runQuery(api.screenshots.getLatest, {
+        sandboxId: body.sandboxId,
+      });
+      return jsonResponse({ screenshot });
+    } catch (error) {
+      return errorResponse((error as Error).message);
+    }
+  }),
+});
+
+http.route({
+  path: "/api/sandbox/screenshots/cleanup",
+  method: "OPTIONS",
+  handler: httpAction(async () => new Response(null, { status: 204, headers: corsHeaders })),
+});
+
+http.route({
+  path: "/api/sandbox/screenshots/cleanup",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    try {
+      const body = await request.json();
+      const result = await ctx.runMutation(api.screenshots.cleanup, {
+        sandboxId: body.sandboxId,
+        keepLast: body.keepLast,
+      });
+      return jsonResponse(result);
+    } catch (error) {
+      return errorResponse((error as Error).message);
+    }
+  }),
+});
+
+// ============================================
 // HEALTH CHECK
 // ============================================
 
@@ -407,6 +502,49 @@ http.route({
   method: "GET",
   handler: httpAction(async () => {
     return jsonResponse({ status: "ok", timestamp: new Date().toISOString() });
+  }),
+});
+
+// ============================================
+// LIST SANDBOXES
+// ============================================
+
+http.route({
+  path: "/api/sandboxes",
+  method: "GET",
+  handler: httpAction(async (ctx) => {
+    try {
+      const sandboxes = await ctx.runQuery(api.sandboxes.list);
+      return jsonResponse({ sandboxes });
+    } catch (error) {
+      return errorResponse((error as Error).message);
+    }
+  }),
+});
+
+http.route({
+  path: "/api/sandboxes/orchestrator",
+  method: "GET",
+  handler: httpAction(async (ctx) => {
+    try {
+      const orchestrator = await ctx.runQuery(api.sandboxes.getOrchestrator);
+      return jsonResponse({ orchestrator });
+    } catch (error) {
+      return errorResponse((error as Error).message);
+    }
+  }),
+});
+
+http.route({
+  path: "/api/sandboxes/workers",
+  method: "GET",
+  handler: httpAction(async (ctx) => {
+    try {
+      const workers = await ctx.runQuery(api.sandboxes.listWorkers);
+      return jsonResponse({ workers });
+    } catch (error) {
+      return errorResponse((error as Error).message);
+    }
   }),
 });
 

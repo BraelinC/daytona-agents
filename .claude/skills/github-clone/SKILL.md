@@ -30,9 +30,9 @@ curl -X POST "$CONVEX_SITE_URL/api/sandbox/git/clone" \
 - `sandboxId` (required): The Daytona sandbox ID
 - `repoUrl` (required): Full Git URL (HTTPS)
 - `branch` (optional): Branch to checkout (default: default branch)
-- `targetPath` (optional): Clone destination (default: `/home/user/projects/{repo-name}`)
+- `targetPath` (optional): Clone destination (default: `/home/daytona/projects/{repo-name}`)
 
-**Returns:** `{"success": true, "path": "/home/user/projects/repo", "output": "..."}`
+**Returns:** `{"success": true, "path": "/home/daytona/projects/repo", "output": "..."}`
 
 ## Complete Development Setup Workflow
 
@@ -49,7 +49,7 @@ curl -X POST "$CONVEX_SITE_URL/api/sandbox/git/clone" \
 ```bash
 curl -X POST "$CONVEX_SITE_URL/api/sandbox/execute" \
   -H "Content-Type: application/json" \
-  -d '{"sandboxId": "abc123", "command": "ls -la /home/user/projects/planner"}'
+  -d '{"sandboxId": "abc123", "command": "ls -la /home/daytona/projects/planner"}'
 ```
 
 ### 3. Install Dependencies
@@ -58,14 +58,14 @@ curl -X POST "$CONVEX_SITE_URL/api/sandbox/execute" \
 ```bash
 curl -X POST "$CONVEX_SITE_URL/api/sandbox/execute" \
   -H "Content-Type: application/json" \
-  -d '{"sandboxId": "abc123", "command": "cd /home/user/projects/planner && npm install", "timeout": 120}'
+  -d '{"sandboxId": "abc123", "command": "cd /home/daytona/projects/planner && npm install", "timeout": 120}'
 ```
 
 **For Python projects:**
 ```bash
 curl -X POST "$CONVEX_SITE_URL/api/sandbox/execute" \
   -H "Content-Type: application/json" \
-  -d '{"sandboxId": "abc123", "command": "cd /home/user/projects/planner && pip install -r requirements.txt", "timeout": 120}'
+  -d '{"sandboxId": "abc123", "command": "cd /home/daytona/projects/planner && pip install -r requirements.txt", "timeout": 120}'
 ```
 
 ### 4. Start Development Server
@@ -74,7 +74,7 @@ curl -X POST "$CONVEX_SITE_URL/api/sandbox/execute" \
 ```bash
 curl -X POST "$CONVEX_SITE_URL/api/sandbox/execute" \
   -H "Content-Type: application/json" \
-  -d '{"sandboxId": "abc123", "command": "cd /home/user/projects/planner && npm run dev &"}'
+  -d '{"sandboxId": "abc123", "command": "cd /home/daytona/projects/planner && npm run dev &"}'
 ```
 
 ### 5. Open Browser to View App
@@ -134,14 +134,14 @@ python manage.py runserver
 ```bash
 curl -X POST "$CONVEX_SITE_URL/api/sandbox/fs/read" \
   -H "Content-Type: application/json" \
-  -d '{"sandboxId": "abc123", "path": "/home/user/projects/planner/src/App.tsx"}'
+  -d '{"sandboxId": "abc123", "path": "/home/daytona/projects/planner/src/App.tsx"}'
 ```
 
 ### Write changes
 ```bash
 curl -X POST "$CONVEX_SITE_URL/api/sandbox/fs/write" \
   -H "Content-Type: application/json" \
-  -d '{"sandboxId": "abc123", "path": "/home/user/projects/planner/src/App.tsx", "content": "..."}'
+  -d '{"sandboxId": "abc123", "path": "/home/daytona/projects/planner/src/App.tsx", "content": "..."}'
 ```
 
 ### Hot reload
@@ -155,3 +155,18 @@ Most dev servers auto-reload on file changes. Take a screenshot to verify.
 - Use `cat package.json` to see available npm scripts
 - Start dev servers with `&` to run in background
 - Take screenshots after starting server to verify it's running
+
+## Known Constraints
+
+⚠️ CONSTRAINT: Default sandbox has only 1GB RAM - large npm/bun installs will be killed (OOM).
+- Monorepos with many dependencies need 2-4GB RAM
+- Install bun via npm: `npm install -g bun`
+
+⚠️ CONSTRAINT: The sandbox user is `daytona`, not `user`.
+- Clone to `/home/daytona/projects/` not `/home/user/projects/`
+
+⚠️ CONSTRAINT: Tier 1-2 sandboxes cannot curl arbitrary URLs.
+- Connection reset errors for non-whitelisted domains
+- npm/pip registries work fine
+
+✅ BEST PRACTICE: For workspace:* dependencies, use bun or pnpm (npm doesn't support workspace protocol).
