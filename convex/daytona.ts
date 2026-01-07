@@ -107,6 +107,127 @@ export const createSandbox = action({
   },
 });
 
+// Create sandbox with custom resources (for init agent)
+export const createWithResources = action({
+  args: {
+    vcpu: v.optional(v.number()),
+    memory: v.optional(v.number()), // GB
+    disk: v.optional(v.number()), // GB
+    repoUrl: v.optional(v.string()),
+    projectName: v.optional(v.string()),
+    autoSetup: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args): Promise<{
+    sandboxId: string;
+    vncUrl: string;
+    vncToken: string | null;
+    convexId: string;
+    repoPath?: string;
+  }> => {
+    const apiKey = process.env.DAYTONA_API_KEY;
+    if (!apiKey) {
+      throw new Error("DAYTONA_API_KEY environment variable not set");
+    }
+
+    const daytona = new Daytona({
+      apiKey,
+      apiUrl: process.env.DAYTONA_API_URL || "https://app.daytona.io/api",
+      target: process.env.DAYTONA_TARGET || "us",
+    });
+
+    // Create sandbox with custom resources
+    const sandbox = await daytona.create({
+      resources: {
+        vcpu: args.vcpu || 1,
+        memory: args.memory || 2,
+        disk: args.disk || 5,
+      },
+      envVars: {
+        OPENCODE_ZEN_API_KEY: process.env.OPENCODE_ZEN_API_KEY || "",
+        PROJECT_NAME: args.projectName || "",
+      },
+      networkBlockAll: false,
+    });
+
+    // Start VNC desktop
+    await sandbox.computerUse.start();
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+
+    // Install OpenCode
+    await sandbox.process.executeCommand("npm install -g opencode-ai@latest");
+
+    // Create OpenCode auth.json
+    const zenApiKey = process.env.OPENCODE_ZEN_API_KEY || "";
+    if (zenApiKey) {
+      await sandbox.process.executeCommand("mkdir -p ~/.local/share/opencode");
+      const authJson = JSON.stringify({ opencode: { apiKey: zenApiKey } });
+      await sandbox.process.executeCommand(`echo '${authJson}' > ~/.local/share/opencode/auth.json`);
+    }
+
+    let repoPath: string | undefined;
+
+    // Auto-setup: Clone repo if provided
+    if (args.autoSetup && args.repoUrl) {
+      const repoName = args.repoUrl.split("/").pop()?.replace(".git", "") || "repo";
+      repoPath = `/home/daytona/projects/${repoName}`;
+
+      await sandbox.process.executeCommand("mkdir -p /home/daytona/projects");
+      await sandbox.process.executeCommand(`git clone ${args.repoUrl} ${repoPath}`);
+
+      // Detect package manager and install
+      const hasBunLock = await sandbox.process.executeCommand(`test -f ${repoPath}/bun.lock && echo yes || echo no`);
+      const hasPackageJson = await sandbox.process.executeCommand(`test -f ${repoPath}/package.json && echo yes || echo no`);
+
+      if (hasBunLock.result?.stdout?.includes("yes")) {
+        await sandbox.process.executeCommand("npm install -g bun");
+        // Don't wait for install - let it run in background
+        sandbox.process.executeCommand(`cd ${repoPath} && bun install`);
+      } else if (hasPackageJson.result?.stdout?.includes("yes")) {
+        sandbox.process.executeCommand(`cd ${repoPath} && npm install`);
+      }
+    }
+
+    // Open terminal
+    await sandbox.computerUse.keyboard.hotkey("ctrl+alt+t");
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+    await sandbox.computerUse.mouse.click(500, 350, "left");
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    // If repo was cloned, cd to it and start opencode there
+    if (repoPath) {
+      await sandbox.computerUse.keyboard.type(`cd ${repoPath} && opencode`);
+    } else {
+      await sandbox.computerUse.keyboard.type("opencode");
+    }
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    await sandbox.computerUse.keyboard.press("m", ["ctrl"]);
+
+    // Get VNC URL
+    const preview = await sandbox.getPreviewLink(6080);
+    const vncUrl = preview.url || String(preview);
+    const vncToken = preview.token || null;
+    const baseUrl = vncUrl.endsWith("/") ? vncUrl.slice(0, -1) : vncUrl;
+
+    // Store in database
+    const convexId = await ctx.runMutation(api.sandboxes.create, {
+      sandboxId: sandbox.id,
+      vncUrl: baseUrl,
+      vncToken: vncToken ?? undefined,
+      role: "worker",
+      repoUrl: args.repoUrl,
+      repoPath,
+    });
+
+    return {
+      sandboxId: sandbox.id,
+      vncUrl,
+      vncToken,
+      convexId: convexId as string,
+      repoPath,
+    };
+  },
+});
+
 // Stop a Daytona sandbox
 export const stopSandbox = action({
   args: {

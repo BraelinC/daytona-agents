@@ -494,6 +494,37 @@ http.route({
 });
 
 // ============================================
+// CREATE SANDBOX WITH RESOURCES (for init agent)
+// ============================================
+
+http.route({
+  path: "/api/sandbox/create",
+  method: "OPTIONS",
+  handler: httpAction(async () => new Response(null, { status: 204, headers: corsHeaders })),
+});
+
+http.route({
+  path: "/api/sandbox/create",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    try {
+      const body = await request.json();
+      const result = await ctx.runAction(api.daytona.createWithResources, {
+        vcpu: body.vcpu,
+        memory: body.memory,
+        disk: body.disk,
+        repoUrl: body.repoUrl,
+        projectName: body.projectName,
+        autoSetup: body.autoSetup,
+      });
+      return jsonResponse(result);
+    } catch (error) {
+      return errorResponse((error as Error).message);
+    }
+  }),
+});
+
+// ============================================
 // HEALTH CHECK
 // ============================================
 
