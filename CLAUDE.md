@@ -164,5 +164,13 @@ curl -X POST "$CONVEX_SITE_URL/api/sandbox/screenshots/cleanup" \
 
 | Skill | Location | Purpose |
 |-------|----------|---------|
+| **project-init** | `.claude/skills/project-init/SKILL.md` | **Run FIRST** - Calculate resources & costs |
 | sandbox-control | `.claude/skills/sandbox-control/SKILL.md` | Control sandbox via HTTP API |
 | github-clone | `.claude/skills/github-clone/SKILL.md` | Clone repos and set up dev environments |
+
+## Session Workflow
+
+1. **Project Init** - Run `project-init` skill to calculate CPU/RAM/disk needs
+2. **Create Sandbox** - Use calculated resources
+3. **Clone & Setup** - Use `github-clone` skill
+4. **Control & Iterate** - Use `sandbox-control` skill
