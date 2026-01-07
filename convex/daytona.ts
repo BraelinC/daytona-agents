@@ -182,11 +182,11 @@ export const createWithResources = action({
       const hasBunLock = await sandbox.process.executeCommand(`test -f ${repoPath}/bun.lock && echo yes || echo no`);
       const hasPackageJson = await sandbox.process.executeCommand(`test -f ${repoPath}/package.json && echo yes || echo no`);
 
-      if (hasBunLock.result?.stdout?.includes("yes")) {
+      if (hasBunLock.result?.includes("yes")) {
         await sandbox.process.executeCommand("npm install -g bun");
         // Don't wait for install - let it run in background
         sandbox.process.executeCommand(`cd ${repoPath} && bun install`);
-      } else if (hasPackageJson.result?.stdout?.includes("yes")) {
+      } else if (hasPackageJson.result?.includes("yes")) {
         sandbox.process.executeCommand(`cd ${repoPath} && npm install`);
       }
     }
