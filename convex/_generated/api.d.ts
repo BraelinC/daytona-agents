@@ -8,7 +8,9 @@
  * @module
  */
 
+import type * as control from "../control.js";
 import type * as daytona from "../daytona.js";
+import type * as http from "../http.js";
 import type * as orchestrator from "../orchestrator.js";
 import type * as sandboxes from "../sandboxes.js";
 import type * as workers from "../workers.js";
@@ -20,7 +22,9 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  control: typeof control;
   daytona: typeof daytona;
+  http: typeof http;
   orchestrator: typeof orchestrator;
   sandboxes: typeof sandboxes;
   workers: typeof workers;
