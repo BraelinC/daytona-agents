@@ -25,6 +25,13 @@ export const takeAndStore = action({
     compressed: v.optional(v.boolean()),
     quality: v.optional(v.number()),
   },
+  returns: v.object({
+    screenshotId: v.id("screenshots"),
+    storageId: v.id("_storage"),
+    url: v.union(v.string(), v.null()),
+    format: v.string(),
+    sizeBytes: v.optional(v.number()),
+  }),
   handler: async (ctx, args) => {
     const daytona = getDaytonaClient();
     const sandbox = await daytona.get(args.sandboxId);
