@@ -42,8 +42,37 @@ export default {
       targetPath = pathParts.slice(firstSlash);
     }
 
-    // Get the token from query params
-    const token = url.searchParams.get('token') || '';
+    // If path doesn't contain a Daytona host (e.g., just /websockify),
+    // try to extract it from the Referer header
+    if (!targetHost.includes('.proxy.daytona.')) {
+      const referer = request.headers.get('Referer');
+      if (referer) {
+        // Extract Daytona host from referer like:
+        // https://vnc-proxy.../6080-xxx.proxy.daytona.works/vnc.html
+        const refererUrl = new URL(referer);
+        const refererPath = refererUrl.pathname.slice(1);
+        const refererFirstSlash = refererPath.indexOf('/');
+        const refererHost = refererFirstSlash === -1 ? refererPath : refererPath.slice(0, refererFirstSlash);
+
+        if (refererHost.includes('.proxy.daytona.')) {
+          console.log(`Extracted Daytona host from Referer: ${refererHost}`);
+          targetHost = refererHost;
+          targetPath = '/' + pathParts; // Original path becomes the target path
+        }
+      }
+    }
+
+    // Get the token from query params, or from Referer if not present
+    let token = url.searchParams.get('token') || '';
+    if (!token) {
+      const referer = request.headers.get('Referer');
+      if (referer) {
+        try {
+          const refererUrl = new URL(referer);
+          token = refererUrl.searchParams.get('token') || '';
+        } catch (e) {}
+      }
+    }
 
     // Build the target URL using HTTPS (Daytona is behind Cloudflare)
     const targetUrl = `https://${targetHost}${targetPath}${url.search}`;
