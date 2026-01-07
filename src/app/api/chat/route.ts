@@ -1,9 +1,15 @@
 import { streamText, tool } from 'ai';
-import { anthropic } from '@ai-sdk/anthropic';
+import { createOpenAI } from '@ai-sdk/openai';
 import { z } from 'zod';
 
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 const CONVEX_SITE_URL = process.env.NEXT_PUBLIC_CONVEX_SITE_URL || 'https://calculating-hummingbird-542.convex.site';
+
+// OpenRouter configuration (using OpenAI-compatible API)
+const openrouter = createOpenAI({
+  apiKey: process.env.OPENROUTER_API_KEY,
+  baseURL: 'https://openrouter.ai/api/v1',
+});
 
 // Parse GitHub URL to owner/repo
 function parseGitHubUrl(url: string): { owner: string; repo: string } | null {
@@ -16,7 +22,7 @@ export async function POST(req: Request) {
   const { messages } = await req.json();
 
   const result = await streamText({
-    model: anthropic('claude-sonnet-4-20250514'),
+    model: openrouter('openai/gpt-5'),
     system: `You are a project initialization assistant that helps users set up development sandboxes.
 
 Your job is to:

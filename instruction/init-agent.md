@@ -84,9 +84,23 @@ Storage: ~$0.0001/hr per GB (first 5GB free)
 
 | Variable | Purpose |
 |----------|---------|
-| `ANTHROPIC_API_KEY` | Claude API access |
+| `OPENROUTER_API_KEY` | OpenRouter API access (GPT-5) |
 | `GITHUB_TOKEN` | GitHub API access (optional for public repos) |
 | `NEXT_PUBLIC_CONVEX_SITE_URL` | Convex HTTP endpoint |
+
+## Model Configuration
+
+Using **OpenRouter** with **GPT-5**:
+```typescript
+import { createOpenAI } from '@ai-sdk/openai';
+
+const openrouter = createOpenAI({
+  apiKey: process.env.OPENROUTER_API_KEY,
+  baseURL: 'https://openrouter.ai/api/v1',
+});
+
+model: openrouter('openai/gpt-5')
+```
 
 ## Example Conversation Flow
 
