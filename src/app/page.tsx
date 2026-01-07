@@ -175,7 +175,7 @@ export default function Home() {
                 </div>
               </div>
               <iframe
-                src={`${orchestrator.vncUrl.replace("https://", "http://")}/vnc.html${orchestrator.vncToken ? `?token=${orchestrator.vncToken}` : ""}`}
+                src={`${orchestrator.vncUrl}/vnc.html${orchestrator.vncToken ? `?token=${orchestrator.vncToken}` : ""}`}
                 className="w-full h-[400px] border-0"
                 allow="clipboard-read; clipboard-write; fullscreen"
               />
@@ -260,7 +260,7 @@ export default function Home() {
                     </div>
                   </div>
                   <iframe
-                    src={`${worker.vncUrl.replace("https://", "http://")}/vnc.html${worker.vncToken ? `?token=${worker.vncToken}` : ""}`}
+                    src={`${worker.vncUrl}/vnc.html${worker.vncToken ? `?token=${worker.vncToken}` : ""}`}
                     className="w-full h-[400px] border-0"
                     allow="clipboard-read; clipboard-write; fullscreen"
                   />
