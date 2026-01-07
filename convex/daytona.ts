@@ -30,8 +30,17 @@ export const createSandbox = action({
       target: process.env.DAYTONA_TARGET || "us",
     });
 
-    // Create sandbox
-    const sandbox = await daytona.create();
+    // Create sandbox with API keys for OpenCode
+    // Note: Full internet access requires Tier 3 or 4 subscription
+    // networkBlockAll: false is the default (most permissive for your tier)
+    const sandbox = await daytona.create({
+      envVars: {
+        // Zen API key for OpenCode (stored in env, will also be written to auth.json)
+        OPENCODE_ZEN_API_KEY: process.env.OPENCODE_ZEN_API_KEY || "",
+      },
+      // Don't restrict network - use maximum access available for your tier
+      networkBlockAll: false,
+    });
 
     // Start VNC desktop
     await sandbox.computerUse.start();
@@ -41,6 +50,14 @@ export const createSandbox = action({
 
     // Install OpenCode
     await sandbox.process.executeCommand("npm install -g opencode-ai@latest");
+
+    // Create OpenCode auth.json with Zen API key
+    const zenApiKey = process.env.OPENCODE_ZEN_API_KEY || "";
+    if (zenApiKey) {
+      await sandbox.process.executeCommand("mkdir -p ~/.local/share/opencode");
+      const authJson = JSON.stringify({ opencode: { apiKey: zenApiKey } });
+      await sandbox.process.executeCommand(`echo '${authJson}' > ~/.local/share/opencode/auth.json`);
+    }
 
     // Open terminal with Ctrl+Alt+T
     await sandbox.computerUse.keyboard.hotkey("ctrl+alt+t");
