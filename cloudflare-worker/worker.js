@@ -16,6 +16,7 @@ export default {
           'Access-Control-Allow-Origin': '*',
           'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
           'Access-Control-Allow-Headers': '*',
+          'Access-Control-Allow-Credentials': 'true',
         },
       });
     }
@@ -47,24 +48,41 @@ export default {
     if (!targetHost.includes('.proxy.daytona.')) {
       const referer = request.headers.get('Referer');
       if (referer) {
-        // Extract Daytona host from referer like:
-        // https://vnc-proxy.../6080-xxx.proxy.daytona.works/vnc.html
-        const refererUrl = new URL(referer);
-        const refererPath = refererUrl.pathname.slice(1);
-        const refererFirstSlash = refererPath.indexOf('/');
-        const refererHost = refererFirstSlash === -1 ? refererPath : refererPath.slice(0, refererFirstSlash);
+        try {
+          const refererUrl = new URL(referer);
+          const refererPath = refererUrl.pathname.slice(1);
+          const refererFirstSlash = refererPath.indexOf('/');
+          const refererHost = refererFirstSlash === -1 ? refererPath : refererPath.slice(0, refererFirstSlash);
 
-        if (refererHost.includes('.proxy.daytona.')) {
-          console.log(`Extracted Daytona host from Referer: ${refererHost}`);
-          targetHost = refererHost;
-          targetPath = '/' + pathParts; // Original path becomes the target path
-        }
+          if (refererHost.includes('.proxy.daytona.')) {
+            console.log(`Extracted Daytona host from Referer: ${refererHost}`);
+            targetHost = refererHost;
+            targetPath = '/' + pathParts;
+          }
+        } catch (e) {}
       }
     }
 
-    // Get the token from query params, or from Referer if not present
+    // Get token from multiple sources (priority order):
+    // 1. URL query param
+    // 2. Cookie (for cross-origin requests where Referer is stripped)
+    // 3. Referer URL query param
     let token = url.searchParams.get('token') || '';
+    let tokenFromCookie = false;
+
     if (!token) {
+      // Try to get from cookie
+      const cookies = request.headers.get('Cookie') || '';
+      const tokenMatch = cookies.match(/daytona_token_([^=]+)=([^;]+)/);
+      if (tokenMatch && tokenMatch[1] === targetHost.split('.')[0]) {
+        token = tokenMatch[2];
+        tokenFromCookie = true;
+        console.log(`Token from cookie: ${token.slice(0, 8)}...`);
+      }
+    }
+
+    if (!token) {
+      // Try Referer (may be stripped by cross-origin policy)
       const referer = request.headers.get('Referer');
       if (referer) {
         try {
@@ -74,8 +92,8 @@ export default {
       }
     }
 
-    // Build the target URL using HTTPS (Daytona is behind Cloudflare)
-    // Append token to URL if we have one (Daytona requires it for all requests)
+    // Build the target URL using HTTPS
+    // Always append token to URL (Daytona requires it for all requests)
     let targetSearch = url.search;
     if (token && !url.searchParams.has('token')) {
       targetSearch = targetSearch ? `${targetSearch}&token=${token}` : `?token=${token}`;
@@ -83,14 +101,13 @@ export default {
     const targetUrl = `https://${targetHost}${targetPath}${targetSearch}`;
 
     console.log(`Proxying: ${request.url} -> ${targetUrl}`);
-    console.log(`Token: ${token ? token.slice(0, 8) + '...' : 'none'}`);
+    console.log(`Token: ${token ? token.slice(0, 8) + '...' : 'none'} (from ${tokenFromCookie ? 'cookie' : 'url/referer'})`);
 
     // Check if this is a WebSocket upgrade request
     const upgradeHeader = request.headers.get('Upgrade');
     if (upgradeHeader && upgradeHeader.toLowerCase() === 'websocket') {
       console.log('WebSocket upgrade request detected');
 
-      // For WebSocket, proxy the upgrade request with bypass headers
       const wsHeaders = new Headers(request.headers);
       wsHeaders.set('X-Daytona-Skip-Preview-Warning', 'true');
       if (token) {
@@ -104,7 +121,6 @@ export default {
     }
 
     try {
-      // Build headers with Daytona bypass
       const headers = {
         'User-Agent': request.headers.get('User-Agent') || 'Mozilla/5.0',
         'Accept': request.headers.get('Accept') || '*/*',
@@ -112,7 +128,6 @@ export default {
         'X-Daytona-Skip-Preview-Warning': 'true',
       };
 
-      // Add token as header if present
       if (token) {
         headers['x-daytona-preview-token'] = token;
       }
@@ -124,11 +139,23 @@ export default {
         redirect: 'follow',
       });
 
-      // Clone response and add CORS headers
+      // Clone response and add headers
       const modifiedResponse = new Response(response.body, response);
       modifiedResponse.headers.set('Access-Control-Allow-Origin', '*');
+      modifiedResponse.headers.set('Access-Control-Allow-Credentials', 'true');
       modifiedResponse.headers.delete('X-Frame-Options');
       modifiedResponse.headers.delete('Content-Security-Policy');
+
+      // If we got token from URL (not cookie), set a cookie for future requests
+      // Use sandbox ID as part of cookie name for isolation
+      if (token && !tokenFromCookie && url.searchParams.has('token')) {
+        const sandboxId = targetHost.split('.')[0]; // e.g., "6080-xxx"
+        modifiedResponse.headers.append(
+          'Set-Cookie',
+          `daytona_token_${sandboxId}=${token}; Path=/; SameSite=None; Secure; Max-Age=3600`
+        );
+        console.log(`Set token cookie for sandbox: ${sandboxId}`);
+      }
 
       return modifiedResponse;
     } catch (error) {
