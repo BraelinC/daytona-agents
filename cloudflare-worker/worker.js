@@ -68,10 +68,16 @@ export default {
       return response;
     }
 
-    // Regular HTTP proxy
+    // Regular HTTP proxy - create new headers with bypass cookie
+    const newHeaders = new Headers(request.headers);
+
+    // Add cookie to bypass Daytona's preview warning page
+    const existingCookie = newHeaders.get('Cookie') || '';
+    newHeaders.set('Cookie', existingCookie + (existingCookie ? '; ' : '') + 'daytona_preview_accepted=true');
+
     const modifiedRequest = new Request(targetUrl, {
       method: request.method,
-      headers: request.headers,
+      headers: newHeaders,
       body: request.body,
       redirect: 'follow',
     });
