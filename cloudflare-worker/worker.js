@@ -59,17 +59,34 @@ export default {
       // WebSocket proxy - Cloudflare handles this automatically
       console.log('WebSocket upgrade request detected');
 
+      // Create headers with correct Host for WebSocket
+      const wsHeaders = new Headers();
+      for (const [key, value] of request.headers.entries()) {
+        if (key.toLowerCase() !== 'host') {
+          wsHeaders.set(key, value);
+        }
+      }
+      wsHeaders.set('Host', targetHost);
+
       // For WebSocket, we need to use the fetch API which handles upgrades
       const response = await fetch(targetUrl, {
         method: request.method,
-        headers: request.headers,
+        headers: wsHeaders,
       });
 
       return response;
     }
 
-    // Regular HTTP proxy - create new headers with bypass cookie
-    const newHeaders = new Headers(request.headers);
+    // Regular HTTP proxy - create new headers with correct Host
+    const newHeaders = new Headers();
+
+    // Copy relevant headers but set correct Host
+    for (const [key, value] of request.headers.entries()) {
+      if (key.toLowerCase() !== 'host') {
+        newHeaders.set(key, value);
+      }
+    }
+    newHeaders.set('Host', targetHost);
 
     // Add cookie to bypass Daytona's preview warning page
     const existingCookie = newHeaders.get('Cookie') || '';
