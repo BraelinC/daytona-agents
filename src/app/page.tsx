@@ -7,6 +7,34 @@ import { Id } from "../../convex/_generated/dataModel";
 
 const VNC_PROXY_URL = process.env.NEXT_PUBLIC_VNC_PROXY_URL || "";
 
+// Project presets
+const PROJECT_PRESETS = [
+  {
+    name: "Coding - Planner",
+    repo: "https://github.com/BraelinC/planner",
+    memory: 4,
+    description: "Bun monorepo with browser for localhost dev server"
+  },
+  {
+    name: "Coding - Blank",
+    repo: "",
+    memory: 4,
+    description: "Empty sandbox for any repo - 4GB for builds"
+  },
+  {
+    name: "School Agent",
+    repo: "",
+    memory: 4,
+    description: "Full internet access - assignments, quizzes, web tasks"
+  },
+  {
+    name: "Test Agent",
+    repo: "",
+    memory: 2,
+    description: "Quick AI capability testing - minimal resources"
+  },
+];
+
 // Build a proxied VNC URL
 function getProxiedVncUrl(vncUrl: string, token?: string | null): string {
   const host = vncUrl.replace("https://", "").replace("http://", "").replace(/\/$/, "");
@@ -14,15 +42,12 @@ function getProxiedVncUrl(vncUrl: string, token?: string | null): string {
   if (token) params.set("token", token);
   params.set("autoconnect", "true");
   params.set("resize", "scale");
-  // Critical: Tell noVNC the correct websocket path including the Daytona host prefix
-  // Include token in path so WebSocket connection carries it (cookies don't work cross-origin)
   const wsPath = token ? `${host}/websockify?token=${token}` : `${host}/websockify`;
   params.set("path", wsPath);
 
   if (VNC_PROXY_URL) {
     return `${VNC_PROXY_URL}/${host}/vnc.html?${params.toString()}`;
   }
-  // Fallback to direct URL (will likely fail due to CORS/mixed content)
   return `${vncUrl}/vnc.html?${params.toString()}`;
 }
 
@@ -43,6 +68,7 @@ export default function Home() {
   const [isSendingPrompt, setIsSendingPrompt] = useState(false);
   const [prompt, setPrompt] = useState("");
   const [stoppingIds, setStoppingIds] = useState<Set<string>>(new Set());
+  const [selectedPreset, setSelectedPreset] = useState(0);
 
   const handleSetupOrchestrator = async () => {
     setIsSettingUp(true);
@@ -109,6 +135,32 @@ export default function Home() {
           {orchestrator ? "1 orchestrator" : "No orchestrator"} + {workerCount} worker(s)
         </span>
       </header>
+
+      {/* Project Presets */}
+      <div className="px-6 py-4 border-b border-[#30363d] bg-[#161b22]">
+        <h2 className="text-sm font-semibold text-[#8b949e] mb-3">Quick Start - Select Project</h2>
+        <div className="flex flex-wrap gap-2">
+          {PROJECT_PRESETS.map((preset, i) => (
+            <button
+              key={preset.name}
+              onClick={() => setSelectedPreset(i)}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                selectedPreset === i
+                  ? "bg-[#1f6feb] text-white"
+                  : "bg-[#21262d] text-[#c9d1d9] hover:bg-[#30363d]"
+              }`}
+            >
+              {preset.name}
+            </button>
+          ))}
+        </div>
+        <p className="mt-2 text-xs text-[#6e7681]">
+          {PROJECT_PRESETS[selectedPreset].description} | {PROJECT_PRESETS[selectedPreset].memory}GB RAM
+          {PROJECT_PRESETS[selectedPreset].repo && (
+            <span className="ml-2 text-[#58a6ff]">{PROJECT_PRESETS[selectedPreset].repo}</span>
+          )}
+        </p>
+      </div>
 
       {/* Prompt Input */}
       <div className="px-6 py-4 border-b border-[#30363d]">

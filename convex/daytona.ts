@@ -31,15 +31,15 @@ export const createSandbox = action({
     });
 
     // Create sandbox with API keys for OpenCode
-    // Note: Full internet access requires Tier 3 or 4 subscription
-    // networkBlockAll: false is the default (most permissive for your tier)
+    // networkAllowList: "0.0.0.0/0" enables full internet access (all addresses)
     const sandbox = await daytona.create({
       envVars: {
         // Zen API key for OpenCode (stored in env, will also be written to auth.json)
         OPENCODE_ZEN_API_KEY: process.env.OPENCODE_ZEN_API_KEY || "",
       },
-      // Don't restrict network - use maximum access available for your tier
+      // Full internet access - allows browser to reach any website
       networkBlockAll: false,
+      networkAllowList: "0.0.0.0/0",
     });
 
     // Start VNC desktop
@@ -135,18 +135,20 @@ export const createWithResources = action({
       target: process.env.DAYTONA_TARGET || "us",
     });
 
-    // Create sandbox with custom resources
+    // Create sandbox with custom resources and full internet access
     const sandbox = await daytona.create({
       resources: {
-        vcpu: args.vcpu || 1,
-        memory: args.memory || 2,
+        cpu: args.vcpu || 1,
+        memory: args.memory || 4,
         disk: args.disk || 5,
       },
       envVars: {
         OPENCODE_ZEN_API_KEY: process.env.OPENCODE_ZEN_API_KEY || "",
         PROJECT_NAME: args.projectName || "",
       },
+      // Full internet access - allows browser to reach any website
       networkBlockAll: false,
+      networkAllowList: "0.0.0.0/0",
     });
 
     // Start VNC desktop
