@@ -3,6 +3,9 @@
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 
+// Cloudflare Worker proxy URL - set this after deploying your worker
+const WORKER_PROXY_URL = process.env.NEXT_PUBLIC_VNC_PROXY_URL || "";
+
 function VNCViewer() {
   const searchParams = useSearchParams();
   const url = searchParams.get("url") || "";
@@ -16,71 +19,44 @@ function VNCViewer() {
     );
   }
 
-  // Build WebSocket URL from HTTP URL
-  // Daytona returns https:// but actually uses http:// - convert to ws:// (not wss://)
-  const httpUrl = url.replace("https://", "http://");
-  const wsBase = httpUrl.replace("http://", "ws://").replace(/\/$/, "");
-  const wsUrl = `${wsBase}/websockify${token ? `?token=${token}` : ""}`;
+  // If no proxy configured, show setup instructions
+  if (!WORKER_PROXY_URL) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen bg-[#1a1a2e] text-white p-4">
+        <h2 className="text-xl font-bold mb-4">VNC Proxy Not Configured</h2>
+        <p className="text-gray-400 mb-2">Set NEXT_PUBLIC_VNC_PROXY_URL in your environment</p>
+        <p className="text-gray-500 text-sm">Example: https://vnc-proxy.your-account.workers.dev</p>
+        <a
+          href={`${url.replace("https://", "http://")}/vnc.html${token ? `?token=${token}` : ""}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-4 px-4 py-2 bg-green-600 rounded hover:bg-green-700"
+        >
+          Open VNC in New Tab (fallback)
+        </a>
+      </div>
+    );
+  }
+
+  // Extract host from URL (e.g., "6080-xxx.proxy.daytona.works" from "https://6080-xxx.proxy.daytona.works")
+  const daytonaHost = url.replace("https://", "").replace("http://", "").replace(/\/$/, "");
+
+  // Build the proxied VNC URL
+  // Worker URL format: https://worker.dev/{daytona-host}/vnc.html?token=xxx
+  const proxiedVncUrl = `${WORKER_PROXY_URL}/${daytonaHost}/vnc.html${token ? `?token=${token}` : ""}`;
 
   // Debug logging
-  console.log("VNC Debug - Input URL:", url);
-  console.log("VNC Debug - Token:", token);
-  console.log("VNC Debug - WS Base:", wsBase);
-  console.log("VNC Debug - Final WS URL:", wsUrl);
+  console.log("VNC Debug - Original URL:", url);
+  console.log("VNC Debug - Daytona Host:", daytonaHost);
+  console.log("VNC Debug - Proxied VNC URL:", proxiedVncUrl);
 
+  // Simply iframe the proxied noVNC page - it will handle WebSocket connections automatically
   return (
-    <div className="h-screen bg-[#1a1a2e]">
-      <div
-        id="status"
-        className="fixed top-2.5 left-2.5 bg-black/70 text-green-500 px-4 py-2 rounded font-mono text-sm z-50"
-      >
-        Connecting...
-      </div>
-      <div id="screen" className="w-full h-full" />
-
-      <script
-        type="module"
-        dangerouslySetInnerHTML={{
-          __html: `
-            import RFB from 'https://cdn.jsdelivr.net/npm/@novnc/novnc@1.4.0/core/rfb.js';
-
-            const status = document.getElementById('status');
-            const wsUrl = '${wsUrl}';
-
-            try {
-              const rfb = new RFB(
-                document.getElementById('screen'),
-                wsUrl,
-                { credentials: { password: '' } }
-              );
-
-              rfb.scaleViewport = true;
-              rfb.resizeSession = true;
-
-              rfb.addEventListener('connect', () => {
-                status.textContent = 'Connected!';
-                setTimeout(() => status.style.display = 'none', 2000);
-              });
-
-              rfb.addEventListener('disconnect', (e) => {
-                status.textContent = 'Disconnected' + (e.detail.clean ? '' : ' (error)');
-                status.style.color = '#f55';
-                status.style.display = 'block';
-              });
-
-              rfb.addEventListener('securityfailure', (e) => {
-                status.textContent = 'Security error: ' + e.detail.reason;
-                status.style.color = '#f55';
-              });
-
-            } catch (err) {
-              status.textContent = 'Error: ' + err.message;
-              status.style.color = '#f55';
-            }
-          `,
-        }}
-      />
-    </div>
+    <iframe
+      src={proxiedVncUrl}
+      className="w-full h-screen border-0"
+      allow="clipboard-read; clipboard-write; fullscreen"
+    />
   );
 }
 
