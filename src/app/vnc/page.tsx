@@ -47,6 +47,8 @@ function VNCViewer() {
   if (token) params.set("token", token);
   params.set("autoconnect", "true");
   params.set("resize", "scale");
+  // Critical: Tell noVNC the correct websocket path including the Daytona host prefix
+  params.set("path", `${daytonaHost}/websockify`);
   const proxiedVncUrl = `${WORKER_PROXY_URL}/${daytonaHost}/vnc.html?${params.toString()}`;
 
   // Debug logging

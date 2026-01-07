@@ -14,6 +14,8 @@ function getProxiedVncUrl(vncUrl: string, token?: string | null): string {
   if (token) params.set("token", token);
   params.set("autoconnect", "true");
   params.set("resize", "scale");
+  // Critical: Tell noVNC the correct websocket path including the Daytona host prefix
+  params.set("path", `${host}/websockify`);
 
   if (VNC_PROXY_URL) {
     return `${VNC_PROXY_URL}/${host}/vnc.html?${params.toString()}`;
