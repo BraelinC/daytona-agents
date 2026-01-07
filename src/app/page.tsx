@@ -5,6 +5,20 @@ import { api } from "../../convex/_generated/api";
 import { useState } from "react";
 import { Id } from "../../convex/_generated/dataModel";
 
+const VNC_PROXY_URL = process.env.NEXT_PUBLIC_VNC_PROXY_URL || "";
+
+// Build a proxied VNC URL
+function getProxiedVncUrl(vncUrl: string, token?: string | null): string {
+  const host = vncUrl.replace("https://", "").replace("http://", "").replace(/\/$/, "");
+  const tokenParam = token ? `?token=${token}` : "";
+
+  if (VNC_PROXY_URL) {
+    return `${VNC_PROXY_URL}/${host}/vnc.html${tokenParam}`;
+  }
+  // Fallback to direct URL (will likely fail due to CORS/mixed content)
+  return `${vncUrl}/vnc.html${tokenParam}`;
+}
+
 export default function Home() {
   // Queries
   const orchestrator = useQuery(api.sandboxes.getOrchestrator);
@@ -151,11 +165,7 @@ export default function Home() {
                 </div>
                 <div className="flex items-center gap-3">
                   <a
-                    href={
-                      orchestrator.vncToken
-                        ? `${orchestrator.vncUrl}/vnc.html?token=${orchestrator.vncToken}`
-                        : `${orchestrator.vncUrl}/vnc.html`
-                    }
+                    href={getProxiedVncUrl(orchestrator.vncUrl, orchestrator.vncToken)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-[#8b949e] hover:text-[#c9d1d9]"
@@ -238,11 +248,7 @@ export default function Home() {
                     </div>
                     <div className="flex items-center gap-3">
                       <a
-                        href={
-                          worker.vncToken
-                            ? `${worker.vncUrl}/vnc.html?token=${worker.vncToken}`
-                            : `${worker.vncUrl}/vnc.html`
-                        }
+                        href={getProxiedVncUrl(worker.vncUrl, worker.vncToken)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-[#8b949e] hover:text-[#c9d1d9]"
