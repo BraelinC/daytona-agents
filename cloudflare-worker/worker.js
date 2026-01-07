@@ -75,7 +75,12 @@ export default {
     }
 
     // Build the target URL using HTTPS (Daytona is behind Cloudflare)
-    const targetUrl = `https://${targetHost}${targetPath}${url.search}`;
+    // Append token to URL if we have one (Daytona requires it for all requests)
+    let targetSearch = url.search;
+    if (token && !url.searchParams.has('token')) {
+      targetSearch = targetSearch ? `${targetSearch}&token=${token}` : `?token=${token}`;
+    }
+    const targetUrl = `https://${targetHost}${targetPath}${targetSearch}`;
 
     console.log(`Proxying: ${request.url} -> ${targetUrl}`);
     console.log(`Token: ${token ? token.slice(0, 8) + '...' : 'none'}`);
