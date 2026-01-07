@@ -136,7 +136,9 @@ export const createWithResources = action({
     });
 
     // Create sandbox with custom resources and full internet access
+    // Note: resources requires an image to be specified
     const sandbox = await daytona.create({
+      image: "daytonaio/ai:latest",
       resources: {
         cpu: args.vcpu || 1,
         memory: args.memory || 4,
