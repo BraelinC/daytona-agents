@@ -139,23 +139,77 @@ export default {
         redirect: 'follow',
       });
 
-      // Clone response and add headers
+      // Check content type for rewriting
+      const contentType = response.headers.get('Content-Type') || '';
+      const isHtml = contentType.includes('text/html');
+      const isJs = contentType.includes('javascript') || targetPath.endsWith('.js');
+      const isCss = contentType.includes('text/css') || targetPath.endsWith('.css');
+
+      // Rewrite HTML, JS, and CSS to inject token into resource URLs
+      if (token && (isHtml || isJs || isCss)) {
+        let content = await response.text();
+
+        if (isHtml) {
+          // Add token to relative script/link/img URLs
+          content = content.replace(
+            /((?:src|href)=["'])(?!(?:https?:|data:|\/\/|#))([^"']+)(["'])/gi,
+            (match, prefix, path, suffix) => {
+              const separator = path.includes('?') ? '&' : '?';
+              return `${prefix}${path}${separator}token=${token}${suffix}`;
+            }
+          );
+        }
+
+        if (isHtml || isCss) {
+          // Handle CSS url() patterns
+          content = content.replace(
+            /(url\(["']?)(?!(?:https?:|data:))([^)"']+)(["']?\))/gi,
+            (match, prefix, path, suffix) => {
+              if (path.startsWith('#')) return match; // Skip SVG references
+              const separator = path.includes('?') ? '&' : '?';
+              return `${prefix}${path}${separator}token=${token}${suffix}`;
+            }
+          );
+        }
+
+        if (isJs) {
+          // Handle ES6 imports: import ... from './path.js' and import('./path.js')
+          content = content.replace(
+            /((?:from|import)\s*\(\s*["'])(?!(?:https?:|data:))([^"']+)(["'])/gi,
+            (match, prefix, path, suffix) => {
+              const separator = path.includes('?') ? '&' : '?';
+              return `${prefix}${path}${separator}token=${token}${suffix}`;
+            }
+          );
+          // Handle: from "./path.js"
+          content = content.replace(
+            /(from\s+["'])(?!(?:https?:|data:))([^"']+)(["'])/gi,
+            (match, prefix, path, suffix) => {
+              const separator = path.includes('?') ? '&' : '?';
+              return `${prefix}${path}${separator}token=${token}${suffix}`;
+            }
+          );
+        }
+
+        console.log(`Rewrote ${isHtml ? 'HTML' : isJs ? 'JS' : 'CSS'} to inject token`);
+
+        const modifiedResponse = new Response(content, {
+          status: response.status,
+          headers: response.headers,
+        });
+        modifiedResponse.headers.set('Access-Control-Allow-Origin', '*');
+        modifiedResponse.headers.set('Access-Control-Allow-Credentials', 'true');
+        modifiedResponse.headers.delete('X-Frame-Options');
+        modifiedResponse.headers.delete('Content-Security-Policy');
+        return modifiedResponse;
+      }
+
+      // For non-HTML responses, just pass through
       const modifiedResponse = new Response(response.body, response);
       modifiedResponse.headers.set('Access-Control-Allow-Origin', '*');
       modifiedResponse.headers.set('Access-Control-Allow-Credentials', 'true');
       modifiedResponse.headers.delete('X-Frame-Options');
       modifiedResponse.headers.delete('Content-Security-Policy');
-
-      // If we got token from URL (not cookie), set a cookie for future requests
-      // Use sandbox ID as part of cookie name for isolation
-      if (token && !tokenFromCookie && url.searchParams.has('token')) {
-        const sandboxId = targetHost.split('.')[0]; // e.g., "6080-xxx"
-        modifiedResponse.headers.append(
-          'Set-Cookie',
-          `daytona_token_${sandboxId}=${token}; Path=/; SameSite=None; Secure; Max-Age=3600`
-        );
-        console.log(`Set token cookie for sandbox: ${sandboxId}`);
-      }
 
       return modifiedResponse;
     } catch (error) {
