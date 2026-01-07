@@ -56,6 +56,7 @@ function VNCViewer() {
   // Debug logging
   console.log("VNC Debug - Original URL:", url);
   console.log("VNC Debug - Daytona Host:", daytonaHost);
+  console.log("VNC Debug - WebSocket Path:", wsPath);
   console.log("VNC Debug - Proxied VNC URL:", proxiedVncUrl);
 
   // Simply iframe the proxied noVNC page - it will handle WebSocket connections automatically

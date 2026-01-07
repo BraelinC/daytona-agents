@@ -107,17 +107,46 @@ export default {
     const upgradeHeader = request.headers.get('Upgrade');
     if (upgradeHeader && upgradeHeader.toLowerCase() === 'websocket') {
       console.log('WebSocket upgrade request detected');
+      console.log(`WebSocket target: ${targetUrl}`);
+      console.log(`WebSocket token: ${token ? token.slice(0, 8) + '...' : 'NONE'}`);
 
-      const wsHeaders = new Headers(request.headers);
-      wsHeaders.set('X-Daytona-Skip-Preview-Warning', 'true');
-      if (token) {
-        wsHeaders.set('x-daytona-preview-token', token);
+      try {
+        const wsHeaders = new Headers();
+        // Copy essential headers for WebSocket
+        wsHeaders.set('Host', targetHost);
+        wsHeaders.set('Upgrade', 'websocket');
+        wsHeaders.set('Connection', 'Upgrade');
+        wsHeaders.set('X-Daytona-Skip-Preview-Warning', 'true');
+
+        // Copy WebSocket-specific headers
+        const wsKey = request.headers.get('Sec-WebSocket-Key');
+        const wsVersion = request.headers.get('Sec-WebSocket-Version');
+        const wsProtocol = request.headers.get('Sec-WebSocket-Protocol');
+        if (wsKey) wsHeaders.set('Sec-WebSocket-Key', wsKey);
+        if (wsVersion) wsHeaders.set('Sec-WebSocket-Version', wsVersion);
+        if (wsProtocol) wsHeaders.set('Sec-WebSocket-Protocol', wsProtocol);
+
+        if (token) {
+          wsHeaders.set('x-daytona-preview-token', token);
+        }
+
+        const wsResponse = await fetch(targetUrl, {
+          headers: wsHeaders,
+        });
+
+        console.log(`WebSocket response status: ${wsResponse.status}`);
+
+        if (wsResponse.status === 101) {
+          console.log('WebSocket upgrade successful');
+        } else {
+          console.log(`WebSocket upgrade failed: ${await wsResponse.text()}`);
+        }
+
+        return wsResponse;
+      } catch (err) {
+        console.error('WebSocket proxy error:', err.message);
+        return new Response(`WebSocket proxy error: ${err.message}`, { status: 500 });
       }
-
-      return fetch(targetUrl, {
-        method: request.method,
-        headers: wsHeaders,
-      });
     }
 
     try {
