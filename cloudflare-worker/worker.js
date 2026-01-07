@@ -1,11 +1,8 @@
 /**
  * Cloudflare Worker - VNC Proxy
  *
- * Proxies HTTP and WebSocket requests from HTTPS to HTTP
- * This allows embedding Daytona's VNC in an HTTPS page
- *
- * URL format: https://your-worker.workers.dev/{daytona-url-without-protocol}
- * Example: https://your-worker.workers.dev/6080-xxx.proxy.daytona.works/vnc.html?token=xxx
+ * Proxies requests to Daytona's VNC endpoints
+ * URL format: https://your-worker.workers.dev/{daytona-host}/{path}
  */
 
 export default {
@@ -24,7 +21,6 @@ export default {
     }
 
     // Get the path after the worker URL
-    // e.g., /6080-xxx.proxy.daytona.works/vnc.html -> 6080-xxx.proxy.daytona.works/vnc.html
     const pathParts = url.pathname.slice(1); // Remove leading /
 
     if (!pathParts || pathParts === '') {
@@ -35,7 +31,6 @@ export default {
     }
 
     // Extract the Daytona host and path
-    // pathParts = "6080-xxx.proxy.daytona.works/vnc.html"
     const firstSlash = pathParts.indexOf('/');
     let targetHost, targetPath;
 
@@ -47,70 +42,35 @@ export default {
       targetPath = pathParts.slice(firstSlash);
     }
 
-    // Build the target URL (HTTP, not HTTPS)
-    const targetUrl = `http://${targetHost}${targetPath}${url.search}`;
+    // Build the target URL using HTTPS (Daytona is behind Cloudflare)
+    const targetUrl = `https://${targetHost}${targetPath}${url.search}`;
 
     console.log(`Proxying: ${request.url} -> ${targetUrl}`);
 
-    // Check if this is a WebSocket upgrade request
-    const upgradeHeader = request.headers.get('Upgrade');
-
-    if (upgradeHeader && upgradeHeader.toLowerCase() === 'websocket') {
-      // WebSocket proxy - Cloudflare handles this automatically
-      console.log('WebSocket upgrade request detected');
-
-      // Create headers with correct Host for WebSocket
-      const wsHeaders = new Headers();
-      for (const [key, value] of request.headers.entries()) {
-        if (key.toLowerCase() !== 'host') {
-          wsHeaders.set(key, value);
-        }
-      }
-      wsHeaders.set('Host', targetHost);
-
-      // For WebSocket, we need to use the fetch API which handles upgrades
+    try {
+      // Simple fetch - let Cloudflare handle headers automatically
       const response = await fetch(targetUrl, {
         method: request.method,
-        headers: wsHeaders,
+        headers: {
+          'User-Agent': request.headers.get('User-Agent') || 'Mozilla/5.0',
+          'Accept': request.headers.get('Accept') || '*/*',
+          'Accept-Language': request.headers.get('Accept-Language') || 'en-US,en;q=0.9',
+          'Cookie': 'daytona_preview_accepted=true',
+        },
+        body: request.method !== 'GET' && request.method !== 'HEAD' ? request.body : undefined,
+        redirect: 'follow',
       });
 
-      return response;
+      // Clone response and add CORS headers
+      const modifiedResponse = new Response(response.body, response);
+      modifiedResponse.headers.set('Access-Control-Allow-Origin', '*');
+      modifiedResponse.headers.delete('X-Frame-Options');
+      modifiedResponse.headers.delete('Content-Security-Policy');
+
+      return modifiedResponse;
+    } catch (error) {
+      console.error('Proxy error:', error);
+      return new Response(`Proxy error: ${error.message}`, { status: 500 });
     }
-
-    // Regular HTTP proxy - create new headers with correct Host
-    const newHeaders = new Headers();
-
-    // Copy relevant headers but set correct Host
-    for (const [key, value] of request.headers.entries()) {
-      if (key.toLowerCase() !== 'host') {
-        newHeaders.set(key, value);
-      }
-    }
-    newHeaders.set('Host', targetHost);
-
-    // Add cookie to bypass Daytona's preview warning page
-    const existingCookie = newHeaders.get('Cookie') || '';
-    newHeaders.set('Cookie', existingCookie + (existingCookie ? '; ' : '') + 'daytona_preview_accepted=true');
-
-    const modifiedRequest = new Request(targetUrl, {
-      method: request.method,
-      headers: newHeaders,
-      body: request.body,
-      redirect: 'follow',
-    });
-
-    const response = await fetch(modifiedRequest);
-
-    // Clone response and add CORS headers
-    const modifiedResponse = new Response(response.body, response);
-    modifiedResponse.headers.set('Access-Control-Allow-Origin', '*');
-    modifiedResponse.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    modifiedResponse.headers.set('Access-Control-Allow-Headers', '*');
-
-    // Remove X-Frame-Options to allow embedding in iframe
-    modifiedResponse.headers.delete('X-Frame-Options');
-    modifiedResponse.headers.delete('Content-Security-Policy');
-
-    return modifiedResponse;
   },
 };
