@@ -21,17 +21,4 @@ export default defineSchema({
     output: v.string(),
     completedAt: v.number(),
   }).index("by_sandbox", ["sandboxId"]),
-
-  // Screenshots stored in Convex (not on sandbox disk)
-  screenshots: defineTable({
-    sandboxId: v.string(),
-    storageId: v.id("_storage"), // Convex file storage
-    format: v.string(), // "jpeg" | "png"
-    width: v.optional(v.number()),
-    height: v.optional(v.number()),
-    sizeBytes: v.optional(v.number()),
-    takenAt: v.number(),
-  })
-    .index("by_sandbox", ["sandboxId"])
-    .index("by_time", ["takenAt"]),
 });

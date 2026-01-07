@@ -29,12 +29,6 @@ function errorResponse(message: string, status = 500) {
 // ============================================
 
 http.route({
-  path: "/api/sandbox/screenshot",
-  method: "OPTIONS",
-  handler: httpAction(async () => new Response(null, { status: 204, headers: corsHeaders })),
-});
-
-http.route({
   path: "/api/sandbox/execute",
   method: "OPTIONS",
   handler: httpAction(async () => new Response(null, { status: 204, headers: corsHeaders })),
@@ -399,102 +393,7 @@ http.route({
 });
 
 // ============================================
-// SCREENSHOT STORAGE (saves to Convex, not sandbox disk)
-// ============================================
-
-http.route({
-  path: "/api/sandbox/screenshot/store",
-  method: "OPTIONS",
-  handler: httpAction(async () => new Response(null, { status: 204, headers: corsHeaders })),
-});
-
-http.route({
-  path: "/api/sandbox/screenshot/store",
-  method: "POST",
-  handler: httpAction(async (ctx, request) => {
-    try {
-      const body = await request.json();
-      const result = await ctx.runAction(api.screenshotActions.takeAndStore, {
-        sandboxId: body.sandboxId,
-        compressed: body.compressed,
-        quality: body.quality,
-      });
-      return jsonResponse(result);
-    } catch (error) {
-      return errorResponse((error as Error).message);
-    }
-  }),
-});
-
-http.route({
-  path: "/api/sandbox/screenshots",
-  method: "OPTIONS",
-  handler: httpAction(async () => new Response(null, { status: 204, headers: corsHeaders })),
-});
-
-http.route({
-  path: "/api/sandbox/screenshots",
-  method: "POST",
-  handler: httpAction(async (ctx, request) => {
-    try {
-      const body = await request.json();
-      const screenshots = await ctx.runQuery(api.screenshots.listBySandbox, {
-        sandboxId: body.sandboxId,
-      });
-      return jsonResponse({ screenshots });
-    } catch (error) {
-      return errorResponse((error as Error).message);
-    }
-  }),
-});
-
-http.route({
-  path: "/api/sandbox/screenshot/latest",
-  method: "OPTIONS",
-  handler: httpAction(async () => new Response(null, { status: 204, headers: corsHeaders })),
-});
-
-http.route({
-  path: "/api/sandbox/screenshot/latest",
-  method: "POST",
-  handler: httpAction(async (ctx, request) => {
-    try {
-      const body = await request.json();
-      const screenshot = await ctx.runQuery(api.screenshots.getLatest, {
-        sandboxId: body.sandboxId,
-      });
-      return jsonResponse({ screenshot });
-    } catch (error) {
-      return errorResponse((error as Error).message);
-    }
-  }),
-});
-
-http.route({
-  path: "/api/sandbox/screenshots/cleanup",
-  method: "OPTIONS",
-  handler: httpAction(async () => new Response(null, { status: 204, headers: corsHeaders })),
-});
-
-http.route({
-  path: "/api/sandbox/screenshots/cleanup",
-  method: "POST",
-  handler: httpAction(async (ctx, request) => {
-    try {
-      const body = await request.json();
-      const result = await ctx.runMutation(api.screenshots.cleanup, {
-        sandboxId: body.sandboxId,
-        keepLast: body.keepLast,
-      });
-      return jsonResponse(result);
-    } catch (error) {
-      return errorResponse((error as Error).message);
-    }
-  }),
-});
-
-// ============================================
-// CREATE SANDBOX WITH RESOURCES (for init agent)
+// CREATE SANDBOX WITH RESOURCES
 // ============================================
 
 http.route({
