@@ -2,7 +2,7 @@
 
 import { action } from "./_generated/server";
 import { v } from "convex/values";
-import { api } from "./_generated/api";
+import { internal } from "./_generated/api";
 import { Daytona } from "@daytonaio/sdk";
 
 // Helper to get Daytona client
@@ -72,7 +72,7 @@ export const takeAndStore = action({
     const storageId = await ctx.storage.store(blob);
 
     // Save metadata to database
-    const screenshotId = await ctx.runMutation(api.screenshots.saveMetadata, {
+    const screenshotId = await ctx.runMutation(internal.screenshots.saveMetadata, {
       sandboxId: args.sandboxId,
       storageId,
       format,

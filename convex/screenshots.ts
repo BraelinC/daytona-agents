@@ -1,9 +1,9 @@
 // Mutations and queries for screenshot storage (no "use node" - runs on Convex)
-import { mutation, query } from "./_generated/server";
+import { mutation, query, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 
-// Save screenshot metadata (called by takeAndStore action)
-export const saveMetadata = mutation({
+// Save screenshot metadata (called by takeAndStore action - internal only)
+export const saveMetadata = internalMutation({
   args: {
     sandboxId: v.string(),
     storageId: v.id("_storage"),
