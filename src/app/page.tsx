@@ -174,11 +174,19 @@ export default function Home() {
                   </button>
                 </div>
               </div>
-              <iframe
-                src={`${orchestrator.vncUrl}/vnc.html${orchestrator.vncToken ? `?token=${orchestrator.vncToken}` : ""}`}
-                className="w-full h-[400px] border-0"
-                allow="clipboard-read; clipboard-write; fullscreen"
-              />
+              <div className="w-full h-[400px] bg-[#0d1117] flex flex-col items-center justify-center gap-4 border-t border-[#30363d]">
+                <p className="text-[#8b949e] text-center px-4">
+                  VNC cannot be embedded due to browser security (HTTPS → HTTP not allowed)
+                </p>
+                <a
+                  href={`${orchestrator.vncUrl.replace("https://", "http://")}/vnc.html${orchestrator.vncToken ? `?token=${orchestrator.vncToken}` : ""}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-6 py-3 bg-[#238636] hover:bg-[#2ea043] text-white font-semibold rounded-md transition-colors"
+                >
+                  Open VNC in New Tab
+                </a>
+              </div>
             </div>
           ) : (
             <div className="border border-[#30363d] rounded-lg p-8 text-center bg-[#161b22]">
@@ -259,11 +267,19 @@ export default function Home() {
                       </button>
                     </div>
                   </div>
-                  <iframe
-                    src={`${worker.vncUrl}/vnc.html${worker.vncToken ? `?token=${worker.vncToken}` : ""}`}
-                    className="w-full h-[400px] border-0"
-                    allow="clipboard-read; clipboard-write; fullscreen"
-                  />
+                  <div className="w-full h-[300px] bg-[#0d1117] flex flex-col items-center justify-center gap-3 border-t border-[#30363d]">
+                    <p className="text-[#8b949e] text-sm text-center px-4">
+                      VNC cannot be embedded (HTTPS → HTTP)
+                    </p>
+                    <a
+                      href={`${worker.vncUrl.replace("https://", "http://")}/vnc.html${worker.vncToken ? `?token=${worker.vncToken}` : ""}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-4 py-2 bg-[#238636] hover:bg-[#2ea043] text-white text-sm font-semibold rounded-md transition-colors"
+                    >
+                      Open VNC in New Tab
+                    </a>
+                  </div>
                 </div>
               ))}
             </div>
