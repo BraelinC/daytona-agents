@@ -41,9 +41,13 @@ function VNCViewer() {
   // Extract host from URL (e.g., "6080-xxx.proxy.daytona.works" from "https://6080-xxx.proxy.daytona.works")
   const daytonaHost = url.replace("https://", "").replace("http://", "").replace(/\/$/, "");
 
-  // Build the proxied VNC URL
-  // Worker URL format: https://worker.dev/{daytona-host}/vnc.html?token=xxx
-  const proxiedVncUrl = `${WORKER_PROXY_URL}/${daytonaHost}/vnc.html${token ? `?token=${token}` : ""}`;
+  // Build the proxied VNC URL with autoconnect
+  // Worker URL format: https://worker.dev/{daytona-host}/vnc.html?token=xxx&autoconnect=true
+  const params = new URLSearchParams();
+  if (token) params.set("token", token);
+  params.set("autoconnect", "true");
+  params.set("resize", "scale");
+  const proxiedVncUrl = `${WORKER_PROXY_URL}/${daytonaHost}/vnc.html?${params.toString()}`;
 
   // Debug logging
   console.log("VNC Debug - Original URL:", url);

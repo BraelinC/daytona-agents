@@ -10,13 +10,16 @@ const VNC_PROXY_URL = process.env.NEXT_PUBLIC_VNC_PROXY_URL || "";
 // Build a proxied VNC URL
 function getProxiedVncUrl(vncUrl: string, token?: string | null): string {
   const host = vncUrl.replace("https://", "").replace("http://", "").replace(/\/$/, "");
-  const tokenParam = token ? `?token=${token}` : "";
+  const params = new URLSearchParams();
+  if (token) params.set("token", token);
+  params.set("autoconnect", "true");
+  params.set("resize", "scale");
 
   if (VNC_PROXY_URL) {
-    return `${VNC_PROXY_URL}/${host}/vnc.html${tokenParam}`;
+    return `${VNC_PROXY_URL}/${host}/vnc.html?${params.toString()}`;
   }
   // Fallback to direct URL (will likely fail due to CORS/mixed content)
-  return `${vncUrl}/vnc.html${tokenParam}`;
+  return `${vncUrl}/vnc.html?${params.toString()}`;
 }
 
 export default function Home() {
