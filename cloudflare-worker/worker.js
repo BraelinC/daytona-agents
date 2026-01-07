@@ -47,6 +47,18 @@ export default {
 
     console.log(`Proxying: ${request.url} -> ${targetUrl}`);
 
+    // Check if this is a WebSocket upgrade request
+    const upgradeHeader = request.headers.get('Upgrade');
+    if (upgradeHeader && upgradeHeader.toLowerCase() === 'websocket') {
+      console.log('WebSocket upgrade request detected');
+
+      // For WebSocket, proxy the upgrade request
+      return fetch(targetUrl, {
+        method: request.method,
+        headers: request.headers,
+      });
+    }
+
     try {
       // Simple fetch - let Cloudflare handle headers automatically
       const response = await fetch(targetUrl, {
