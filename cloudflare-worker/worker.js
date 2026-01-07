@@ -2,7 +2,7 @@
  * Cloudflare Worker - VNC Proxy
  *
  * Proxies requests to Daytona's VNC endpoints
- * URL format: https://your-worker.workers.dev/{daytona-host}/{path}
+ * URL format: https://your-worker.workers.dev/{daytona-host}/{path}?token=xxx
  */
 
 export default {
@@ -24,7 +24,7 @@ export default {
     const pathParts = url.pathname.slice(1); // Remove leading /
 
     if (!pathParts || pathParts === '') {
-      return new Response('VNC Proxy - Usage: /{daytona-host}/{path}', {
+      return new Response('VNC Proxy - Usage: /{daytona-host}/{path}?token=xxx', {
         status: 200,
         headers: { 'Content-Type': 'text/plain' }
       });
@@ -42,33 +42,50 @@ export default {
       targetPath = pathParts.slice(firstSlash);
     }
 
+    // Get the token from query params
+    const token = url.searchParams.get('token') || '';
+
     // Build the target URL using HTTPS (Daytona is behind Cloudflare)
     const targetUrl = `https://${targetHost}${targetPath}${url.search}`;
 
     console.log(`Proxying: ${request.url} -> ${targetUrl}`);
+    console.log(`Token: ${token ? token.slice(0, 8) + '...' : 'none'}`);
 
     // Check if this is a WebSocket upgrade request
     const upgradeHeader = request.headers.get('Upgrade');
     if (upgradeHeader && upgradeHeader.toLowerCase() === 'websocket') {
       console.log('WebSocket upgrade request detected');
 
-      // For WebSocket, proxy the upgrade request
+      // For WebSocket, proxy the upgrade request with bypass headers
+      const wsHeaders = new Headers(request.headers);
+      wsHeaders.set('X-Daytona-Skip-Preview-Warning', 'true');
+      if (token) {
+        wsHeaders.set('x-daytona-preview-token', token);
+      }
+
       return fetch(targetUrl, {
         method: request.method,
-        headers: request.headers,
+        headers: wsHeaders,
       });
     }
 
     try {
-      // Simple fetch - let Cloudflare handle headers automatically
+      // Build headers with Daytona bypass
+      const headers = {
+        'User-Agent': request.headers.get('User-Agent') || 'Mozilla/5.0',
+        'Accept': request.headers.get('Accept') || '*/*',
+        'Accept-Language': request.headers.get('Accept-Language') || 'en-US,en;q=0.9',
+        'X-Daytona-Skip-Preview-Warning': 'true',
+      };
+
+      // Add token as header if present
+      if (token) {
+        headers['x-daytona-preview-token'] = token;
+      }
+
       const response = await fetch(targetUrl, {
         method: request.method,
-        headers: {
-          'User-Agent': request.headers.get('User-Agent') || 'Mozilla/5.0',
-          'Accept': request.headers.get('Accept') || '*/*',
-          'Accept-Language': request.headers.get('Accept-Language') || 'en-US,en;q=0.9',
-          'Cookie': 'daytona_preview_accepted=true',
-        },
+        headers,
         body: request.method !== 'GET' && request.method !== 'HEAD' ? request.body : undefined,
         redirect: 'follow',
       });
