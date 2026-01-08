@@ -4,7 +4,7 @@ import { action } from "./_generated/server";
 import { v } from "convex/values";
 import { api } from "./_generated/api";
 import { Daytona } from "@daytonaio/sdk";
-import { CLAUDE_MD, TOOLS, SKILLS_MD, DEFAULT_REFERENCE } from "./preloads";
+import { CLAUDE_MD, TOOLS, SKILLS_MD, DEFAULT_REFERENCE, CLAUDE_SKILLS } from "./preloads";
 
 // Model configuration for OpenRouter
 const MODEL_CONFIG = {
@@ -22,6 +22,14 @@ async function uploadPreloadedFiles(sandbox: Awaited<ReturnType<Daytona["create"
   // Upload CLAUDE.md (for Claude Code) to the home directory
   if (cliTool === "claude-code") {
     await sandbox.fs.uploadFile(Buffer.from(CLAUDE_MD), "/home/daytona/CLAUDE.md");
+
+    // Upload Claude Code skills to ~/.claude/skills/
+    await sandbox.process.executeCommand("mkdir -p /home/daytona/.claude/skills");
+    for (const [skillName, skill] of Object.entries(CLAUDE_SKILLS)) {
+      const skillDir = `/home/daytona/.claude/skills/${skillName}`;
+      await sandbox.process.executeCommand(`mkdir -p ${skillDir}`);
+      await sandbox.fs.uploadFile(Buffer.from(skill.content), `${skillDir}/SKILL.md`);
+    }
   }
 
   // Upload tool scripts
