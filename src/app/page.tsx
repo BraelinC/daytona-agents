@@ -110,21 +110,29 @@ export default function Home() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [currentIndex, totalSlides]);
 
-  // Get SSH credentials
+  // Get SSH credentials (reuses existing if not expired)
   const handleGetSsh = useCallback(async (sandboxId: string) => {
-    console.log("[SSH] Requesting SSH for sandbox:", sandboxId);
+    // Check if we already have valid credentials for this sandbox
+    const existing = sshCredentials[sandboxId];
+    if (existing) {
+      const expiresAt = new Date(existing.expiresAt).getTime();
+      const now = Date.now();
+      // If token expires in more than 1 hour, reuse it
+      if (expiresAt - now > 60 * 60 * 1000) {
+        console.log("[SSH] Reusing existing token for sandbox:", sandboxId);
+        return; // Already have valid credentials displayed
+      }
+    }
+
+    console.log("[SSH] Requesting new SSH token for sandbox:", sandboxId);
     setLoadingSsh(prev => new Set(prev).add(sandboxId));
     try {
       const result = await createSshAccess({ sandboxId });
-      console.log("[SSH] Got credentials for sandbox:", sandboxId, "command:", result.sshCommand);
-      setSshCredentials(prev => {
-        const updated = {
-          ...prev,
-          [sandboxId]: { sshCommand: result.sshCommand, expiresAt: result.expiresAt }
-        };
-        console.log("[SSH] Updated credentials state:", Object.keys(updated));
-        return updated;
-      });
+      console.log("[SSH] Got credentials for sandbox:", sandboxId);
+      setSshCredentials(prev => ({
+        ...prev,
+        [sandboxId]: { sshCommand: result.sshCommand, expiresAt: result.expiresAt }
+      }));
     } catch (error) {
       console.error("[SSH] Failed for sandbox:", sandboxId, error);
       alert("Failed to get SSH: " + (error as Error).message);
@@ -135,7 +143,7 @@ export default function Home() {
         return next;
       });
     }
-  }, [createSshAccess]);
+  }, [createSshAccess, sshCredentials]);
 
   // Copy SSH command
   const handleCopySsh = useCallback((sandboxId: string, sshCommand: string) => {
