@@ -99,10 +99,10 @@ SSH_RESPONSE=$(curl -s -X POST "${API_BASE}/api/sandbox/ssh" \
   -d "{\"sandboxId\": \"$SANDBOX_ID\", \"expiresInMinutes\": 1440}")
 
 # Parse SSH credentials
+# Daytona SSH format: ssh <token>@ssh.app.daytona.io
 SSH_HOST=$(echo "$SSH_RESPONSE" | jq -r '.host // empty')
-SSH_PORT=$(echo "$SSH_RESPONSE" | jq -r '.port // empty')
-SSH_USER=$(echo "$SSH_RESPONSE" | jq -r '.username // empty')
 SSH_TOKEN=$(echo "$SSH_RESPONSE" | jq -r '.token // empty')
+SSH_COMMAND=$(echo "$SSH_RESPONSE" | jq -r '.sshCommand // empty')
 
 if [ -z "$SSH_HOST" ] || [ -z "$SSH_TOKEN" ]; then
   echo -e "${RED}Error: Failed to get SSH credentials${NC}"
@@ -110,7 +110,7 @@ if [ -z "$SSH_HOST" ] || [ -z "$SSH_TOKEN" ]; then
   exit 1
 fi
 
-echo -e "${GREEN}Got SSH access: $SSH_USER@$SSH_HOST:$SSH_PORT${NC}"
+echo -e "${GREEN}Got SSH access: ${SSH_TOKEN:0:20}...@$SSH_HOST${NC}"
 
 # Step 2: Build the ralph-loop command
 echo -e "${BLUE}[2/3] Preparing Ralph loop command...${NC}"
@@ -127,19 +127,12 @@ echo ""
 
 # Step 3: SSH and run
 echo -e "${BLUE}[3/3] Connecting via SSH and starting Ralph loop...${NC}"
-echo -e "${YELLOW}(You may need to enter the SSH token as password)${NC}"
 echo ""
 
-# Use sshpass if available, otherwise prompt for password
-if command -v sshpass &> /dev/null; then
-  sshpass -p "$SSH_TOKEN" ssh -o "StrictHostKeyChecking=no" -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" \
-    "cd /home/daytona/projects && claude --print \"$RALPH_CMD\""
-else
-  echo -e "${YELLOW}SSH Token (paste as password): $SSH_TOKEN${NC}"
-  echo ""
-  ssh -o "StrictHostKeyChecking=no" -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" \
-    "cd /home/daytona/projects && echo '$RALPH_CMD' | claude"
-fi
+# Daytona SSH uses token as username: ssh <token>@ssh.app.daytona.io
+# No password needed - the token IS the authentication
+ssh -o "StrictHostKeyChecking=no" "${SSH_TOKEN}@${SSH_HOST}" \
+  "cd /home/daytona/projects && claude --print \"$RALPH_CMD\""
 
 echo ""
 echo -e "${GREEN}=== Ralph loop complete ===${NC}"

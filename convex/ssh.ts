@@ -17,6 +17,9 @@ function getDaytonaClient() {
   });
 }
 
+// Daytona SSH host is always the same
+const DAYTONA_SSH_HOST = "ssh.app.daytona.io";
+
 // Create SSH access token for a sandbox
 export const createSshAccess = action({
   args: {
@@ -26,8 +29,8 @@ export const createSshAccess = action({
   handler: async (ctx, args): Promise<{
     host: string;
     port: number;
-    username: string;
     token: string;
+    sshCommand: string;
     expiresAt: string;
   }> => {
     const daytona = getDaytonaClient();
@@ -37,12 +40,15 @@ export const createSshAccess = action({
     const expiresIn = args.expiresInMinutes || 1440;
     const sshAccess = await sandbox.createSshAccess(expiresIn);
 
+    // Daytona SSH uses token as username: ssh <token>@ssh.app.daytona.io
     return {
-      host: sshAccess.host || "",
-      port: sshAccess.port || 22,
-      username: sshAccess.username || "daytona",
-      token: sshAccess.token || "",
-      expiresAt: sshAccess.expiresAt || new Date(Date.now() + expiresIn * 60000).toISOString(),
+      host: DAYTONA_SSH_HOST,
+      port: 22,
+      token: sshAccess.token,
+      sshCommand: `ssh ${sshAccess.token}@${DAYTONA_SSH_HOST}`,
+      expiresAt: sshAccess.expiresAt instanceof Date
+        ? sshAccess.expiresAt.toISOString()
+        : new Date(Date.now() + expiresIn * 60000).toISOString(),
     };
   },
 });
