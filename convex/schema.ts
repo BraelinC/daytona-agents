@@ -32,4 +32,16 @@ export default defineSchema({
   })
     .index("by_sandbox", ["sandboxId"])
     .index("by_time", ["takenAt"]),
+
+  // Automation tasks (Gemini-driven browser automation)
+  automationTasks: defineTable({
+    sandboxId: v.string(),
+    task: v.string(),
+    status: v.string(), // "running" | "completed" | "failed"
+    result: v.optional(v.string()),
+    startedAt: v.number(),
+    completedAt: v.optional(v.number()),
+  })
+    .index("by_sandbox", ["sandboxId"])
+    .index("by_status", ["status"]),
 });

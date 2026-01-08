@@ -1,0 +1,23 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "openrouter": {
+      "apiKey": "${OPENROUTER_API_KEY}"
+    }
+  },
+  "mode": {
+    "burst": {
+      "model": "openrouter/google/gemini-3-flash-preview",
+      "temperature": 0.1,
+      "prompt": "{file:./.opencode/prompts/burst-agent.md}",
+      "tools": {
+        "write": false,
+        "edit": false,
+        "bash": true,
+        "read": true,
+        "grep": false,
+        "glob": false
+      }
+    }
+  }
+}

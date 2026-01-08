@@ -673,4 +673,98 @@ http.route({
   }),
 });
 
+// ============================================
+// AUTOMATION (Gemini-driven browser automation)
+// ============================================
+
+http.route({
+  path: "/api/automation/start",
+  method: "OPTIONS",
+  handler: httpAction(async () => new Response(null, { status: 204, headers: corsHeaders })),
+});
+
+http.route({
+  path: "/api/automation/start",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    try {
+      const body = await request.json();
+      const result = await ctx.runAction(api.geminiAutomation.startAutomation, {
+        sandboxId: body.sandboxId,
+        task: body.task,
+        maxIterations: body.maxIterations,
+      });
+      return jsonResponse(result);
+    } catch (error) {
+      return errorResponse((error as Error).message);
+    }
+  }),
+});
+
+http.route({
+  path: "/api/automation/stop",
+  method: "OPTIONS",
+  handler: httpAction(async () => new Response(null, { status: 204, headers: corsHeaders })),
+});
+
+http.route({
+  path: "/api/automation/stop",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    try {
+      const body = await request.json();
+      const result = await ctx.runAction(api.geminiAutomation.stopAutomation, {
+        taskId: body.taskId,
+      });
+      return jsonResponse(result);
+    } catch (error) {
+      return errorResponse((error as Error).message);
+    }
+  }),
+});
+
+http.route({
+  path: "/api/automation/status",
+  method: "OPTIONS",
+  handler: httpAction(async () => new Response(null, { status: 204, headers: corsHeaders })),
+});
+
+http.route({
+  path: "/api/automation/status",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    try {
+      const body = await request.json();
+      const task = await ctx.runQuery(api.automationTasks.get, {
+        taskId: body.taskId,
+      });
+      return jsonResponse({ task });
+    } catch (error) {
+      return errorResponse((error as Error).message);
+    }
+  }),
+});
+
+http.route({
+  path: "/api/automation/list",
+  method: "OPTIONS",
+  handler: httpAction(async () => new Response(null, { status: 204, headers: corsHeaders })),
+});
+
+http.route({
+  path: "/api/automation/list",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    try {
+      const body = await request.json();
+      const tasks = await ctx.runQuery(api.automationTasks.listBySandbox, {
+        sandboxId: body.sandboxId,
+      });
+      return jsonResponse({ tasks });
+    } catch (error) {
+      return errorResponse((error as Error).message);
+    }
+  }),
+});
+
 export default http;

@@ -174,3 +174,156 @@ curl -X POST "$CONVEX_SITE_URL/api/sandbox/screenshots/cleanup" \
 2. **Create Sandbox** - Use calculated resources
 3. **Clone & Setup** - Use `github-clone` skill
 4. **Control & Iterate** - Use `sandbox-control` skill
+
+---
+
+## Gemini Live Sub-Agent (Browser Automation)
+
+You have access to a **Gemini Live vision agent** that can autonomously control the browser/desktop. Use this when you need to:
+- Fill out web forms
+- Click through UI flows for testing
+- Navigate websites and interact with elements
+- Perform repetitive browser tasks
+
+### When to Use the Gemini Sub-Agent
+
+✅ **USE IT FOR:**
+- Browser interactions (clicking, typing, scrolling)
+- UI testing (click through flows, verify elements)
+- Form filling with test data
+- Web scraping that requires interaction
+- Any visual task requiring screen analysis
+
+❌ **DON'T USE IT FOR:**
+- File operations (use shell commands instead)
+- API calls (use curl/fetch instead)
+- Code editing (do it yourself)
+- Tasks that don't need a browser
+
+### How to Delegate to Gemini Sub-Agent
+
+**Start an automation task:**
+```bash
+curl -X POST "$CONVEX_SITE_URL/api/automation/start" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "sandboxId": "YOUR_SANDBOX_ID",
+    "task": "Click the login button, enter test@example.com in email field, enter password123 in password field, then click Submit"
+  }'
+```
+
+Response:
+```json
+{"taskId": "abc123", "status": "started"}
+```
+
+**Check task status:**
+```bash
+curl -X POST "$CONVEX_SITE_URL/api/automation/status" \
+  -H "Content-Type: application/json" \
+  -d '{"taskId": "abc123"}'
+```
+
+Response:
+```json
+{"task": {"status": "completed", "result": "Successfully logged in"}}
+```
+
+**Stop a running task:**
+```bash
+curl -X POST "$CONVEX_SITE_URL/api/automation/stop" \
+  -H "Content-Type: application/json" \
+  -d '{"taskId": "abc123"}'
+```
+
+### Writing Good Task Descriptions
+
+The Gemini agent sees screenshots and uses tools (click, type, scroll). Write clear, specific tasks:
+
+✅ **Good task descriptions:**
+```
+"Click the blue 'Sign Up' button in the top right corner"
+"Type 'hello world' into the search box and press Enter"
+"Scroll down until you see the 'Pricing' section, then click 'Free Trial'"
+"Fill the form: name='John Doe', email='john@test.com', then click Submit"
+```
+
+❌ **Bad task descriptions:**
+```
+"Log in" (too vague - where? what credentials?)
+"Test the app" (no specific actions)
+"Make it work" (not actionable)
+```
+
+### Automation API Reference
+
+| Endpoint | Method | Body | Description |
+|----------|--------|------|-------------|
+| `/api/automation/start` | POST | `{sandboxId, task, maxIterations?}` | Start automation |
+| `/api/automation/status` | POST | `{taskId}` | Check task status |
+| `/api/automation/stop` | POST | `{taskId}` | Stop running task |
+| `/api/automation/list` | POST | `{sandboxId}` | List tasks for sandbox |
+
+### Task Statuses
+
+| Status | Meaning |
+|--------|---------|
+| `running` | Gemini is actively working |
+| `completed` | Task finished successfully |
+| `failed` | Task failed (check `result` for reason) |
+
+### Example: Full Automation Flow
+
+```bash
+# 1. Start the task
+TASK_RESPONSE=$(curl -s -X POST "$CONVEX_SITE_URL/api/automation/start" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "sandboxId": "'$SANDBOX_ID'",
+    "task": "Open Firefox, go to github.com, click Sign In, enter username test@example.com and password test123, click the green Sign In button"
+  }')
+
+TASK_ID=$(echo $TASK_RESPONSE | jq -r '.taskId')
+echo "Started task: $TASK_ID"
+
+# 2. Poll for completion (or do other work while waiting)
+while true; do
+  STATUS=$(curl -s -X POST "$CONVEX_SITE_URL/api/automation/status" \
+    -H "Content-Type: application/json" \
+    -d '{"taskId": "'$TASK_ID'"}' | jq -r '.task.status')
+
+  if [ "$STATUS" != "running" ]; then
+    echo "Task finished with status: $STATUS"
+    break
+  fi
+
+  sleep 5
+done
+
+# 3. Get final result
+curl -s -X POST "$CONVEX_SITE_URL/api/automation/status" \
+  -H "Content-Type: application/json" \
+  -d '{"taskId": "'$TASK_ID'"}' | jq '.task.result'
+```
+
+### Tools Available to Gemini
+
+The Gemini sub-agent has these tools:
+
+| Tool | Description |
+|------|-------------|
+| `click(x, y)` | Click at screen coordinates |
+| `type_text(text)` | Type text at cursor |
+| `press_key(key)` | Press key (Return, Tab, Escape, ctrl+c, etc.) |
+| `scroll(direction, amount)` | Scroll up/down |
+| `wait(seconds)` | Wait for page loads |
+| `screenshot()` | Take fresh screenshot |
+| `task_complete(success, summary)` | Signal done |
+
+### Tips for Claude Code
+
+1. **Delegate visual tasks** - If you need to interact with a browser UI, delegate to Gemini
+2. **Be specific** - Give Gemini exact instructions with element descriptions
+3. **Check status** - Poll the status endpoint or do other work while Gemini runs
+4. **Handle failures** - If Gemini fails, try rephrasing the task or break it into smaller steps
+5. **Combine with your work** - You handle code/files, Gemini handles browser UI
