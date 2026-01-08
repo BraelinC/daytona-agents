@@ -74,37 +74,15 @@ export const createSandbox = action({
     await sandbox.computerUse.mouse.click(500, 350, "left");
     await new Promise((resolve) => setTimeout(resolve, 500));
 
-    // Type opencode and press Enter
+    // Type opencode and press Enter to start it
     await sandbox.computerUse.keyboard.type("opencode");
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    await new Promise((resolve) => setTimeout(resolve, 500));
     await sandbox.computerUse.keyboard.press("Return");
 
-    // Wait for OpenCode to fully load
-    await new Promise((resolve) => setTimeout(resolve, 5000));
+    // Wait for OpenCode to fully load (needs more time to initialize)
+    await new Promise((resolve) => setTimeout(resolve, 10000));
 
-    // Automate model selection for OpenRouter
-    const modelType = (args.modelType || "orchestrator") as keyof typeof MODEL_CONFIG;
-    const selectedModel = MODEL_CONFIG[modelType] || MODEL_CONFIG.orchestrator;
-
-    if (openRouterApiKey) {
-      // Type /models to open model selector
-      await sandbox.computerUse.keyboard.type("/models");
-      await sandbox.computerUse.keyboard.press("Return");
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // Select all and type the specific model name to filter
-      await sandbox.computerUse.keyboard.hotkey("ctrl+a");
-      await sandbox.computerUse.keyboard.type(selectedModel);
-      await sandbox.computerUse.keyboard.press("Return");
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      // Type API key and confirm
-      await sandbox.computerUse.keyboard.type(openRouterApiKey);
-      await sandbox.computerUse.keyboard.press("Return");
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-    }
-
-    // Get VNC URL
+    // Get VNC URL first (model config can happen after user sees the sandbox)
     const preview = await sandbox.getPreviewLink(6080);
     const vncUrl = preview.url || String(preview);
     const vncToken = preview.token || null;
@@ -234,33 +212,11 @@ export const createWithResources = action({
     } else {
       await sandbox.computerUse.keyboard.type("opencode");
     }
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    await new Promise((resolve) => setTimeout(resolve, 500));
     await sandbox.computerUse.keyboard.press("Return");
 
-    // Wait for OpenCode to fully load
-    await new Promise((resolve) => setTimeout(resolve, 5000));
-
-    // Automate model selection for OpenRouter
-    const modelType = (args.modelType || "orchestrator") as keyof typeof MODEL_CONFIG;
-    const selectedModel = MODEL_CONFIG[modelType] || MODEL_CONFIG.orchestrator;
-
-    if (openRouterApiKey) {
-      // Type /models to open model selector
-      await sandbox.computerUse.keyboard.type("/models");
-      await sandbox.computerUse.keyboard.press("Return");
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // Select all and type the specific model name to filter
-      await sandbox.computerUse.keyboard.hotkey("ctrl+a");
-      await sandbox.computerUse.keyboard.type(selectedModel);
-      await sandbox.computerUse.keyboard.press("Return");
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      // Type API key and confirm
-      await sandbox.computerUse.keyboard.type(openRouterApiKey);
-      await sandbox.computerUse.keyboard.press("Return");
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-    }
+    // Wait for OpenCode to start loading
+    await new Promise((resolve) => setTimeout(resolve, 10000));
 
     // Get VNC URL
     const preview = await sandbox.getPreviewLink(6080);
@@ -348,7 +304,7 @@ export const createDualAgentSandbox = action({
       await sandbox.process.executeCommand(`git clone ${args.repoUrl} ${repoPath}`);
     }
 
-    // === TERMINAL 1: Orchestrator Agent (GLM 4.7) ===
+    // === TERMINAL 1: Orchestrator Agent ===
     await sandbox.computerUse.keyboard.hotkey("ctrl+alt+t");
     await new Promise((resolve) => setTimeout(resolve, 3000));
     await sandbox.computerUse.mouse.click(500, 350, "left");
@@ -360,24 +316,11 @@ export const createDualAgentSandbox = action({
     } else {
       await sandbox.computerUse.keyboard.type("opencode");
     }
+    await new Promise((resolve) => setTimeout(resolve, 500));
     await sandbox.computerUse.keyboard.press("Return");
-    await new Promise((resolve) => setTimeout(resolve, 5000));
+    await new Promise((resolve) => setTimeout(resolve, 8000));
 
-    // Configure orchestrator model (GLM 4.7)
-    if (openRouterApiKey) {
-      await sandbox.computerUse.keyboard.type("/models");
-      await sandbox.computerUse.keyboard.press("Return");
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      await sandbox.computerUse.keyboard.hotkey("ctrl+a");
-      await sandbox.computerUse.keyboard.type(MODEL_CONFIG.orchestrator);
-      await sandbox.computerUse.keyboard.press("Return");
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      await sandbox.computerUse.keyboard.type(openRouterApiKey);
-      await sandbox.computerUse.keyboard.press("Return");
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-    }
-
-    // === TERMINAL 2: Vision Agent (Gemini 3.0 Flash) ===
+    // === TERMINAL 2: Vision Agent ===
     await sandbox.computerUse.keyboard.hotkey("ctrl+alt+t");
     await new Promise((resolve) => setTimeout(resolve, 3000));
     await sandbox.computerUse.mouse.click(700, 400, "left");
@@ -389,22 +332,9 @@ export const createDualAgentSandbox = action({
     } else {
       await sandbox.computerUse.keyboard.type("opencode");
     }
+    await new Promise((resolve) => setTimeout(resolve, 500));
     await sandbox.computerUse.keyboard.press("Return");
-    await new Promise((resolve) => setTimeout(resolve, 5000));
-
-    // Configure vision model (Gemini 3.0 Flash)
-    if (openRouterApiKey) {
-      await sandbox.computerUse.keyboard.type("/models");
-      await sandbox.computerUse.keyboard.press("Return");
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      await sandbox.computerUse.keyboard.hotkey("ctrl+a");
-      await sandbox.computerUse.keyboard.type(MODEL_CONFIG.vision);
-      await sandbox.computerUse.keyboard.press("Return");
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      await sandbox.computerUse.keyboard.type(openRouterApiKey);
-      await sandbox.computerUse.keyboard.press("Return");
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-    }
+    await new Promise((resolve) => setTimeout(resolve, 8000));
 
     // Get VNC URL
     const preview = await sandbox.getPreviewLink(6080);
