@@ -2,7 +2,7 @@
 
 import { useQuery, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { Id } from "../../convex/_generated/dataModel";
 
 // SSH credentials state type
@@ -15,34 +15,8 @@ const VNC_PROXY_URL = process.env.NEXT_PUBLIC_VNC_PROXY_URL || "";
 
 // Project presets
 const PROJECT_PRESETS = [
-  {
-    name: "Claude Code",
-    repo: "",
-    memory: 4,
-    cliTool: "claude-code",
-    description: "Anthropic's Claude Code CLI - uses Anthropic API directly"
-  },
-  {
-    name: "OpenCode",
-    repo: "",
-    memory: 4,
-    cliTool: "opencode",
-    description: "OpenCode with OpenRouter - cheap models like GLM 4.7"
-  },
-  {
-    name: "Coding - Planner",
-    repo: "https://github.com/BraelinC/planner",
-    memory: 4,
-    cliTool: "opencode",
-    description: "Bun monorepo with browser for localhost dev server"
-  },
-  {
-    name: "School Agent",
-    repo: "",
-    memory: 4,
-    cliTool: "claude-code",
-    description: "Full internet access - assignments, quizzes, web tasks"
-  },
+  { name: "Claude Code", cliTool: "claude-code", description: "Anthropic's Claude Code CLI" },
+  { name: "OpenCode", cliTool: "opencode", description: "OpenCode with OpenRouter" },
 ];
 
 // Build a proxied VNC URL
@@ -63,28 +37,78 @@ function getProxiedVncUrl(vncUrl: string, token?: string | null): string {
 
 export default function Home() {
   // Queries
-  const orchestrator = useQuery(api.sandboxes.getOrchestrator);
+  const orchestrators = useQuery(api.sandboxes.listOrchestrators);
   const workers = useQuery(api.sandboxes.listWorkers);
 
   // Actions
   const setupOrchestrator = useAction(api.orchestrator.setup);
-  const sendPrompt = useAction(api.orchestrator.sendPrompt);
-  const createWorker = useAction(api.workers.create);
   const stopSandbox = useAction(api.daytona.stopSandbox);
   const createSshAccess = useAction(api.ssh.createSshAccess);
 
   // State
+  const [currentIndex, setCurrentIndex] = useState(0);
   const [isSettingUp, setIsSettingUp] = useState(false);
-  const [isCreatingWorker, setIsCreatingWorker] = useState(false);
-  const [isSendingPrompt, setIsSendingPrompt] = useState(false);
-  const [prompt, setPrompt] = useState("");
-  const [stoppingIds, setStoppingIds] = useState<Set<string>>(new Set());
   const [selectedPreset, setSelectedPreset] = useState(0);
+  const [stoppingIds, setStoppingIds] = useState<Set<string>>(new Set());
   const [sshCredentials, setSshCredentials] = useState<Record<string, SshCredentials>>({});
   const [loadingSsh, setLoadingSsh] = useState<Set<string>>(new Set());
   const [copiedSsh, setCopiedSsh] = useState<string | null>(null);
 
-  // Get SSH credentials for a sandbox
+  // Touch handling for swipe
+  const touchStartX = useRef(0);
+  const touchEndX = useRef(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Total slides = orchestrators + 1 (for "new project" card)
+  const totalSlides = (orchestrators?.length || 0) + 1;
+
+  // Ensure currentIndex is valid when orchestrators change
+  useEffect(() => {
+    if (currentIndex >= totalSlides) {
+      setCurrentIndex(Math.max(0, totalSlides - 1));
+    }
+  }, [totalSlides, currentIndex]);
+
+  // Handle touch start
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
+
+  // Handle touch move
+  const handleTouchMove = (e: React.TouchEvent) => {
+    touchEndX.current = e.touches[0].clientX;
+  };
+
+  // Handle touch end - detect swipe
+  const handleTouchEnd = () => {
+    const diff = touchStartX.current - touchEndX.current;
+    const threshold = 50;
+
+    if (Math.abs(diff) > threshold) {
+      if (diff > 0 && currentIndex < totalSlides - 1) {
+        // Swipe left - go to next
+        setCurrentIndex(currentIndex + 1);
+      } else if (diff < 0 && currentIndex > 0) {
+        // Swipe right - go to previous
+        setCurrentIndex(currentIndex - 1);
+      }
+    }
+  };
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "ArrowLeft" && currentIndex > 0) {
+        setCurrentIndex(currentIndex - 1);
+      } else if (e.key === "ArrowRight" && currentIndex < totalSlides - 1) {
+        setCurrentIndex(currentIndex + 1);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [currentIndex, totalSlides]);
+
+  // Get SSH credentials
   const handleGetSsh = useCallback(async (sandboxId: string) => {
     setLoadingSsh(prev => new Set(prev).add(sandboxId));
     try {
@@ -94,7 +118,6 @@ export default function Home() {
         [sandboxId]: { sshCommand: result.sshCommand, expiresAt: result.expiresAt }
       }));
     } catch (error) {
-      console.error("Failed to get SSH credentials:", error);
       alert("Failed to get SSH: " + (error as Error).message);
     } finally {
       setLoadingSsh(prev => {
@@ -105,61 +128,36 @@ export default function Home() {
     }
   }, [createSshAccess]);
 
-  // Copy SSH command to clipboard
+  // Copy SSH command
   const handleCopySsh = useCallback((sandboxId: string, sshCommand: string) => {
     navigator.clipboard.writeText(sshCommand);
     setCopiedSsh(sandboxId);
     setTimeout(() => setCopiedSsh(null), 2000);
   }, []);
 
-  const handleSetupOrchestrator = async () => {
+  // Create new project
+  const handleCreateProject = async () => {
     setIsSettingUp(true);
     try {
       const preset = PROJECT_PRESETS[selectedPreset];
       await setupOrchestrator({ cliTool: preset.cliTool });
+      // After creating, stay on new project card (it will be added to list)
     } catch (error) {
-      console.error("Failed to setup orchestrator:", error);
-      alert("Failed to setup: " + (error as Error).message);
+      alert("Failed to create project: " + (error as Error).message);
     } finally {
       setIsSettingUp(false);
     }
   };
 
-  const handleSendPrompt = async () => {
-    if (!prompt.trim()) return;
-    setIsSendingPrompt(true);
-    try {
-      await sendPrompt({ prompt });
-      setPrompt("");
-    } catch (error) {
-      console.error("Failed to send prompt:", error);
-      alert("Failed to send: " + (error as Error).message);
-    } finally {
-      setIsSendingPrompt(false);
-    }
-  };
-
-  const handleCreateWorker = async () => {
-    setIsCreatingWorker(true);
-    try {
-      await createWorker({});
-    } catch (error) {
-      console.error("Failed to create worker:", error);
-      alert("Failed to create: " + (error as Error).message);
-    } finally {
-      setIsCreatingWorker(false);
-    }
-  };
-
+  // Stop sandbox
   const handleStop = async (sandboxId: string, convexId: Id<"sandboxes">) => {
-    setStoppingIds((prev) => new Set(prev).add(convexId));
+    setStoppingIds(prev => new Set(prev).add(convexId));
     try {
       await stopSandbox({ sandboxId, convexId });
     } catch (error) {
-      console.error("Failed to stop sandbox:", error);
       alert("Failed to stop: " + (error as Error).message);
     } finally {
-      setStoppingIds((prev) => {
+      setStoppingIds(prev => {
         const next = new Set(prev);
         next.delete(convexId);
         return next;
@@ -167,263 +165,195 @@ export default function Home() {
     }
   };
 
-  const workerCount = workers?.length ?? 0;
+  const projectCount = orchestrators?.length || 0;
 
   return (
-    <div className="min-h-screen bg-[#0d1117] text-[#c9d1d9]">
+    <div className="h-screen flex flex-col bg-[#0d1117] text-[#c9d1d9] overflow-hidden">
       {/* Header */}
-      <header className="px-6 py-4 bg-[#161b22] border-b border-[#30363d] flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-[#f0f6fc]">Daytona Agents</h1>
+      <header className="px-4 py-3 bg-[#161b22] border-b border-[#30363d] flex items-center justify-between shrink-0">
+        <h1 className="text-lg font-semibold text-[#f0f6fc]">Daytona Agents</h1>
         <span className="text-sm text-[#8b949e]">
-          {orchestrator ? "1 orchestrator" : "No orchestrator"} + {workerCount} worker(s)
+          {projectCount} project{projectCount !== 1 ? "s" : ""} • {workers?.length || 0} worker{(workers?.length || 0) !== 1 ? "s" : ""}
         </span>
       </header>
 
-      {/* Project Presets */}
-      <div className="px-6 py-4 border-b border-[#30363d] bg-[#161b22]">
-        <h2 className="text-sm font-semibold text-[#8b949e] mb-3">Quick Start - Select Project</h2>
-        <div className="flex flex-wrap gap-2">
-          {PROJECT_PRESETS.map((preset, i) => (
-            <button
-              key={preset.name}
-              onClick={() => setSelectedPreset(i)}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                selectedPreset === i
-                  ? "bg-[#1f6feb] text-white"
-                  : "bg-[#21262d] text-[#c9d1d9] hover:bg-[#30363d]"
-              }`}
-            >
-              {preset.name}
-            </button>
-          ))}
-        </div>
-        <p className="mt-2 text-xs text-[#6e7681]">
-          {PROJECT_PRESETS[selectedPreset].description} | {PROJECT_PRESETS[selectedPreset].memory}GB RAM
-          {PROJECT_PRESETS[selectedPreset].repo && (
-            <span className="ml-2 text-[#58a6ff]">{PROJECT_PRESETS[selectedPreset].repo}</span>
-          )}
-        </p>
-      </div>
-
-      {/* Prompt Input */}
-      <div className="px-6 py-4 border-b border-[#30363d]">
-        <div className="flex gap-3">
-          <input
-            type="text"
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleSendPrompt()}
-            placeholder="Clone BraelinC/myrepo and add a README..."
-            disabled={!orchestrator || isSendingPrompt}
-            className="flex-1 px-4 py-2.5 bg-[#0d1117] border border-[#30363d] rounded-md
-                       text-[#c9d1d9] placeholder-[#6e7681] focus:outline-none focus:border-[#58a6ff]
-                       disabled:opacity-50"
-          />
+      {/* Navigation Dots */}
+      <div className="flex justify-center gap-2 py-3 bg-[#161b22] border-b border-[#30363d] shrink-0">
+        {Array.from({ length: totalSlides }).map((_, i) => (
           <button
-            onClick={handleSendPrompt}
-            disabled={!orchestrator || !prompt.trim() || isSendingPrompt}
-            className="px-5 py-2.5 bg-[#238636] hover:bg-[#2ea043] disabled:bg-[#238636]/50
-                       text-white font-semibold rounded-md transition-colors"
-          >
-            {isSendingPrompt ? "Sending..." : "Send"}
-          </button>
-        </div>
-        {!orchestrator && (
-          <p className="mt-2 text-sm text-[#8b949e]">
-            Initialize the orchestrator first to send prompts.
-          </p>
-        )}
+            key={i}
+            onClick={() => setCurrentIndex(i)}
+            className={`w-2.5 h-2.5 rounded-full transition-colors ${
+              i === currentIndex ? "bg-[#58a6ff]" : "bg-[#30363d] hover:bg-[#484f58]"
+            }`}
+            aria-label={i < projectCount ? `Project ${i + 1}` : "New Project"}
+          />
+        ))}
       </div>
 
-      <div className="p-6 space-y-8">
-        {/* Orchestrator Section */}
-        <section>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-[#f0f6fc]">
-              Orchestrator
-            </h2>
-            {!orchestrator && (
-              <button
-                onClick={handleSetupOrchestrator}
-                disabled={isSettingUp}
-                className="px-4 py-2 bg-[#1f6feb] hover:bg-[#388bfd] disabled:bg-[#1f6feb]/50
-                           text-white text-sm font-semibold rounded-md transition-colors"
-              >
-                {isSettingUp ? "Initializing..." : "Initialize Orchestrator"}
-              </button>
-            )}
-          </div>
-
-          {orchestrator ? (
-            <div className="border border-[#30363d] rounded-lg overflow-hidden bg-[#161b22]">
-              <div className="px-3 py-2 bg-[#21262d] flex justify-between items-center text-sm">
+      {/* Swipeable Container */}
+      <div
+        ref={containerRef}
+        className="flex-1 overflow-hidden relative"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        {/* Slides */}
+        <div
+          className="flex h-full transition-transform duration-300 ease-out"
+          style={{ transform: `translateX(-${currentIndex * 100}%)` }}
+        >
+          {/* Existing Projects */}
+          {orchestrators?.map((orch, index) => (
+            <div key={orch._id} className="w-full h-full shrink-0 flex flex-col">
+              {/* Project Header */}
+              <div className="px-4 py-3 bg-[#21262d] flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-2">
-                  <span className="px-2 py-0.5 bg-[#1f6feb] text-white text-xs rounded">
-                    ORCHESTRATOR
+                  <span className="px-2 py-0.5 bg-[#1f6feb] text-white text-xs rounded font-medium">
+                    PROJECT {index + 1}
                   </span>
-                  <span className="text-[#58a6ff]">
-                    {orchestrator.sandboxId.slice(0, 8)}...
+                  <span className="text-[#58a6ff] text-sm font-mono">
+                    {orch.sandboxId.slice(0, 8)}...
                   </span>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
                   <button
-                    onClick={() => handleGetSsh(orchestrator.sandboxId)}
-                    disabled={loadingSsh.has(orchestrator.sandboxId)}
-                    className="px-3 py-1 bg-[#21262d] hover:bg-[#30363d] disabled:opacity-50
+                    onClick={() => handleGetSsh(orch.sandboxId)}
+                    disabled={loadingSsh.has(orch.sandboxId)}
+                    className="px-3 py-1.5 bg-[#21262d] hover:bg-[#30363d] disabled:opacity-50
                                text-[#58a6ff] text-xs font-semibold rounded border border-[#30363d]"
                   >
-                    {loadingSsh.has(orchestrator.sandboxId) ? "Loading..." : "SSH"}
+                    {loadingSsh.has(orch.sandboxId) ? "..." : "SSH"}
                   </button>
                   <a
-                    href={getProxiedVncUrl(orchestrator.vncUrl, orchestrator.vncToken)}
+                    href={getProxiedVncUrl(orch.vncUrl, orch.vncToken)}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-[#8b949e] hover:text-[#c9d1d9]"
+                    className="px-3 py-1.5 bg-[#21262d] hover:bg-[#30363d]
+                               text-[#8b949e] text-xs font-semibold rounded border border-[#30363d]"
                   >
-                    Open in Tab
+                    Fullscreen
                   </a>
                   <button
-                    onClick={() =>
-                      handleStop(orchestrator.sandboxId, orchestrator._id)
-                    }
-                    disabled={stoppingIds.has(orchestrator._id)}
-                    className="px-3 py-1 bg-[#da3633] hover:bg-[#f85149] disabled:bg-[#da3633]/50
+                    onClick={() => handleStop(orch.sandboxId, orch._id)}
+                    disabled={stoppingIds.has(orch._id)}
+                    className="px-3 py-1.5 bg-[#da3633] hover:bg-[#f85149] disabled:opacity-50
                                text-white text-xs font-semibold rounded"
                   >
-                    {stoppingIds.has(orchestrator._id) ? "Stopping..." : "Stop"}
+                    {stoppingIds.has(orch._id) ? "..." : "Stop"}
                   </button>
                 </div>
               </div>
-              {/* SSH Credentials Display */}
-              {sshCredentials[orchestrator.sandboxId] && (
-                <div className="px-3 py-2 bg-[#0d1117] border-t border-[#30363d] flex items-center gap-3">
-                  <code className="flex-1 text-sm text-[#7ee787] font-mono bg-[#161b22] px-3 py-1.5 rounded">
-                    {sshCredentials[orchestrator.sandboxId].sshCommand}
+
+              {/* SSH Credentials */}
+              {sshCredentials[orch.sandboxId] && (
+                <div className="px-4 py-2 bg-[#0d1117] border-b border-[#30363d] flex items-center gap-2 shrink-0">
+                  <code className="flex-1 text-xs text-[#7ee787] font-mono bg-[#161b22] px-2 py-1 rounded truncate">
+                    {sshCredentials[orch.sandboxId].sshCommand}
                   </code>
                   <button
-                    onClick={() => handleCopySsh(orchestrator.sandboxId, sshCredentials[orchestrator.sandboxId].sshCommand)}
-                    className="px-3 py-1.5 bg-[#238636] hover:bg-[#2ea043] text-white text-xs font-semibold rounded"
+                    onClick={() => handleCopySsh(orch.sandboxId, sshCredentials[orch.sandboxId].sshCommand)}
+                    className="px-2 py-1 bg-[#238636] hover:bg-[#2ea043] text-white text-xs font-semibold rounded"
                   >
-                    {copiedSsh === orchestrator.sandboxId ? "Copied!" : "Copy"}
+                    {copiedSsh === orch.sandboxId ? "Copied!" : "Copy"}
                   </button>
-                  <span className="text-xs text-[#6e7681]">
-                    Expires: {new Date(sshCredentials[orchestrator.sandboxId].expiresAt).toLocaleTimeString()}
-                  </span>
                 </div>
               )}
-              <iframe
-                src={`/vnc?url=${encodeURIComponent(orchestrator.vncUrl)}&token=${encodeURIComponent(orchestrator.vncToken || "")}`}
-                className="w-full h-[400px] border-0"
-                allow="clipboard-read; clipboard-write; fullscreen"
-              />
-            </div>
-          ) : (
-            <div className="border border-[#30363d] rounded-lg p-8 text-center bg-[#161b22]">
-              <p className="text-[#8b949e]">
-                {isSettingUp
-                  ? "Setting up orchestrator... This may take a minute."
-                  : "No orchestrator running. Click 'Initialize Orchestrator' to start."}
-              </p>
-            </div>
-          )}
-        </section>
 
-        {/* Workers Section */}
-        <section>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-[#f0f6fc]">Workers</h2>
-            <button
-              onClick={handleCreateWorker}
-              disabled={isCreatingWorker}
-              className="px-4 py-2 bg-[#238636] hover:bg-[#2ea043] disabled:bg-[#238636]/50
-                         text-white text-sm font-semibold rounded-md transition-colors"
-            >
-              {isCreatingWorker ? "Creating..." : "+ New Worker"}
-            </button>
-          </div>
-
-          {workers === undefined ? (
-            <div className="text-center py-8 text-[#8b949e]">Loading...</div>
-          ) : workers.length === 0 ? (
-            <div className="border border-[#30363d] rounded-lg p-8 text-center bg-[#161b22]">
-              <p className="text-[#8b949e]">
-                {isCreatingWorker
-                  ? "Creating worker... This may take a minute."
-                  : "No workers running. The orchestrator will create workers as needed."}
-              </p>
+              {/* VNC Frame */}
+              <div className="flex-1 min-h-0">
+                <iframe
+                  src={`/vnc?url=${encodeURIComponent(orch.vncUrl)}&token=${encodeURIComponent(orch.vncToken || "")}`}
+                  className="w-full h-full border-0"
+                  allow="clipboard-read; clipboard-write; fullscreen"
+                />
+              </div>
             </div>
-          ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {workers.map((worker) => (
-                <div
-                  key={worker._id}
-                  className="border border-[#30363d] rounded-lg overflow-hidden bg-[#161b22]"
-                >
-                  <div className="px-3 py-2 bg-[#21262d] flex justify-between items-center text-sm">
-                    <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 bg-[#238636] text-white text-xs rounded">
-                        WORKER
-                      </span>
-                      <span className="text-[#58a6ff]">
-                        {worker.sandboxId.slice(0, 8)}...
-                      </span>
-                      {worker.repoUrl && (
-                        <span className="text-[#8b949e] text-xs">
-                          {worker.repoUrl.split("/").slice(-2).join("/")}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <button
-                        onClick={() => handleGetSsh(worker.sandboxId)}
-                        disabled={loadingSsh.has(worker.sandboxId)}
-                        className="px-3 py-1 bg-[#21262d] hover:bg-[#30363d] disabled:opacity-50
-                                   text-[#58a6ff] text-xs font-semibold rounded border border-[#30363d]"
-                      >
-                        {loadingSsh.has(worker.sandboxId) ? "Loading..." : "SSH"}
-                      </button>
-                      <a
-                        href={getProxiedVncUrl(worker.vncUrl, worker.vncToken)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-[#8b949e] hover:text-[#c9d1d9]"
-                      >
-                        Open in Tab
-                      </a>
-                      <button
-                        onClick={() => handleStop(worker.sandboxId, worker._id)}
-                        disabled={stoppingIds.has(worker._id)}
-                        className="px-3 py-1 bg-[#da3633] hover:bg-[#f85149] disabled:bg-[#da3633]/50
-                                   text-white text-xs font-semibold rounded"
-                      >
-                        {stoppingIds.has(worker._id) ? "Stopping..." : "Stop"}
-                      </button>
-                    </div>
-                  </div>
-                  {/* SSH Credentials Display */}
-                  {sshCredentials[worker.sandboxId] && (
-                    <div className="px-3 py-2 bg-[#0d1117] border-t border-[#30363d] flex items-center gap-3">
-                      <code className="flex-1 text-sm text-[#7ee787] font-mono bg-[#161b22] px-3 py-1.5 rounded truncate">
-                        {sshCredentials[worker.sandboxId].sshCommand}
-                      </code>
-                      <button
-                        onClick={() => handleCopySsh(worker.sandboxId, sshCredentials[worker.sandboxId].sshCommand)}
-                        className="px-3 py-1.5 bg-[#238636] hover:bg-[#2ea043] text-white text-xs font-semibold rounded"
-                      >
-                        {copiedSsh === worker.sandboxId ? "Copied!" : "Copy"}
-                      </button>
-                    </div>
-                  )}
-                  <iframe
-                    src={`/vnc?url=${encodeURIComponent(worker.vncUrl)}&token=${encodeURIComponent(worker.vncToken || "")}`}
-                    className="w-full h-[300px] border-0"
-                    allow="clipboard-read; clipboard-write; fullscreen"
-                  />
+          ))}
+
+          {/* New Project Card */}
+          <div className="w-full h-full shrink-0 flex flex-col items-center justify-center p-6">
+            <div className="max-w-md w-full space-y-6">
+              <div className="text-center">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[#21262d] flex items-center justify-center">
+                  <svg className="w-8 h-8 text-[#58a6ff]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
                 </div>
-              ))}
+                <h2 className="text-xl font-semibold text-[#f0f6fc] mb-2">New Project</h2>
+                <p className="text-sm text-[#8b949e]">Create a new Daytona sandbox with AI coding assistant</p>
+              </div>
+
+              {/* Preset Selection */}
+              <div className="space-y-3">
+                {PROJECT_PRESETS.map((preset, i) => (
+                  <button
+                    key={preset.name}
+                    onClick={() => setSelectedPreset(i)}
+                    className={`w-full p-4 rounded-lg border text-left transition-colors ${
+                      selectedPreset === i
+                        ? "border-[#58a6ff] bg-[#161b22]"
+                        : "border-[#30363d] bg-[#0d1117] hover:border-[#484f58]"
+                    }`}
+                  >
+                    <div className="font-medium text-[#f0f6fc]">{preset.name}</div>
+                    <div className="text-xs text-[#8b949e] mt-1">{preset.description}</div>
+                  </button>
+                ))}
+              </div>
+
+              {/* Create Button */}
+              <button
+                onClick={handleCreateProject}
+                disabled={isSettingUp}
+                className="w-full py-3 bg-[#238636] hover:bg-[#2ea043] disabled:bg-[#238636]/50
+                           text-white font-semibold rounded-lg transition-colors"
+              >
+                {isSettingUp ? "Creating Project..." : "Create Project"}
+              </button>
+
+              {isSettingUp && (
+                <p className="text-center text-sm text-[#8b949e]">
+                  This may take a minute...
+                </p>
+              )}
             </div>
-          )}
-        </section>
+          </div>
+        </div>
+
+        {/* Left/Right Navigation Arrows (Desktop) */}
+        {currentIndex > 0 && (
+          <button
+            onClick={() => setCurrentIndex(currentIndex - 1)}
+            className="hidden md:flex absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10
+                       bg-[#21262d] hover:bg-[#30363d] rounded-full items-center justify-center
+                       border border-[#30363d] text-[#c9d1d9]"
+            aria-label="Previous project"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+        )}
+        {currentIndex < totalSlides - 1 && (
+          <button
+            onClick={() => setCurrentIndex(currentIndex + 1)}
+            className="hidden md:flex absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10
+                       bg-[#21262d] hover:bg-[#30363d] rounded-full items-center justify-center
+                       border border-[#30363d] text-[#c9d1d9]"
+            aria-label="Next project"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        )}
+      </div>
+
+      {/* Bottom hint for mobile */}
+      <div className="md:hidden px-4 py-2 bg-[#161b22] border-t border-[#30363d] text-center shrink-0">
+        <span className="text-xs text-[#6e7681]">Swipe left/right to switch projects</span>
       </div>
     </div>
   );

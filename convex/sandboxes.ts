@@ -13,7 +13,7 @@ export const list = query({
   },
 });
 
-// Get orchestrator sandbox
+// Get orchestrator sandbox (first one - legacy)
 export const getOrchestrator = query({
   args: {},
   handler: async (ctx) => {
@@ -23,6 +23,19 @@ export const getOrchestrator = query({
       .filter((q) => q.neq(q.field("status"), "stopped"))
       .collect();
     return orchestrators[0] || null;
+  },
+});
+
+// Get all orchestrator sandboxes (for multi-project view)
+export const listOrchestrators = query({
+  args: {},
+  handler: async (ctx) => {
+    return await ctx.db
+      .query("sandboxes")
+      .withIndex("by_role", (q) => q.eq("role", "orchestrator"))
+      .filter((q) => q.neq(q.field("status"), "stopped"))
+      .order("desc")
+      .collect();
   },
 });
 
