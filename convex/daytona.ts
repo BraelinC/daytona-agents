@@ -91,7 +91,7 @@ export const createSandbox = action({
     await uploadPreloadedFiles(sandbox, cliTool);
 
     // Install TMUX for SSH session sharing
-    await sandbox.process.executeCommand("apt-get update && apt-get install -y tmux");
+    await sandbox.process.executeCommand("sudo apt-get update && sudo apt-get install -y tmux");
 
     // Install the selected CLI tool
     if (cliTool === "claude-code") {
@@ -235,7 +235,7 @@ export const createWithResources = action({
     await new Promise((resolve) => setTimeout(resolve, 5000));
 
     // Install TMUX for SSH session sharing
-    await sandbox.process.executeCommand("apt-get update && apt-get install -y tmux");
+    await sandbox.process.executeCommand("sudo apt-get update && sudo apt-get install -y tmux");
 
     // Install OpenCode
     await sandbox.process.executeCommand("npm install -g opencode-ai@latest");
@@ -365,7 +365,7 @@ export const createDualAgentSandbox = action({
     await new Promise((resolve) => setTimeout(resolve, 5000));
 
     // Install TMUX for SSH session sharing
-    await sandbox.process.executeCommand("apt-get update && apt-get install -y tmux");
+    await sandbox.process.executeCommand("sudo apt-get update && sudo apt-get install -y tmux");
 
     // Install OpenCode
     await sandbox.process.executeCommand("npm install -g opencode-ai@latest");
