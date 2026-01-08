@@ -2,8 +2,14 @@
 
 import { useQuery, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Id } from "../../convex/_generated/dataModel";
+
+// SSH credentials state type
+interface SshCredentials {
+  sshCommand: string;
+  expiresAt: string;
+}
 
 const VNC_PROXY_URL = process.env.NEXT_PUBLIC_VNC_PROXY_URL || "";
 
@@ -65,6 +71,7 @@ export default function Home() {
   const sendPrompt = useAction(api.orchestrator.sendPrompt);
   const createWorker = useAction(api.workers.create);
   const stopSandbox = useAction(api.daytona.stopSandbox);
+  const createSshAccess = useAction(api.ssh.createSshAccess);
 
   // State
   const [isSettingUp, setIsSettingUp] = useState(false);
@@ -73,6 +80,37 @@ export default function Home() {
   const [prompt, setPrompt] = useState("");
   const [stoppingIds, setStoppingIds] = useState<Set<string>>(new Set());
   const [selectedPreset, setSelectedPreset] = useState(0);
+  const [sshCredentials, setSshCredentials] = useState<Record<string, SshCredentials>>({});
+  const [loadingSsh, setLoadingSsh] = useState<Set<string>>(new Set());
+  const [copiedSsh, setCopiedSsh] = useState<string | null>(null);
+
+  // Get SSH credentials for a sandbox
+  const handleGetSsh = useCallback(async (sandboxId: string) => {
+    setLoadingSsh(prev => new Set(prev).add(sandboxId));
+    try {
+      const result = await createSshAccess({ sandboxId });
+      setSshCredentials(prev => ({
+        ...prev,
+        [sandboxId]: { sshCommand: result.sshCommand, expiresAt: result.expiresAt }
+      }));
+    } catch (error) {
+      console.error("Failed to get SSH credentials:", error);
+      alert("Failed to get SSH: " + (error as Error).message);
+    } finally {
+      setLoadingSsh(prev => {
+        const next = new Set(prev);
+        next.delete(sandboxId);
+        return next;
+      });
+    }
+  }, [createSshAccess]);
+
+  // Copy SSH command to clipboard
+  const handleCopySsh = useCallback((sandboxId: string, sshCommand: string) => {
+    navigator.clipboard.writeText(sshCommand);
+    setCopiedSsh(sandboxId);
+    setTimeout(() => setCopiedSsh(null), 2000);
+  }, []);
 
   const handleSetupOrchestrator = async () => {
     setIsSettingUp(true);
@@ -228,6 +266,14 @@ export default function Home() {
                   </span>
                 </div>
                 <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => handleGetSsh(orchestrator.sandboxId)}
+                    disabled={loadingSsh.has(orchestrator.sandboxId)}
+                    className="px-3 py-1 bg-[#21262d] hover:bg-[#30363d] disabled:opacity-50
+                               text-[#58a6ff] text-xs font-semibold rounded border border-[#30363d]"
+                  >
+                    {loadingSsh.has(orchestrator.sandboxId) ? "Loading..." : "SSH"}
+                  </button>
                   <a
                     href={getProxiedVncUrl(orchestrator.vncUrl, orchestrator.vncToken)}
                     target="_blank"
@@ -248,6 +294,23 @@ export default function Home() {
                   </button>
                 </div>
               </div>
+              {/* SSH Credentials Display */}
+              {sshCredentials[orchestrator.sandboxId] && (
+                <div className="px-3 py-2 bg-[#0d1117] border-t border-[#30363d] flex items-center gap-3">
+                  <code className="flex-1 text-sm text-[#7ee787] font-mono bg-[#161b22] px-3 py-1.5 rounded">
+                    {sshCredentials[orchestrator.sandboxId].sshCommand}
+                  </code>
+                  <button
+                    onClick={() => handleCopySsh(orchestrator.sandboxId, sshCredentials[orchestrator.sandboxId].sshCommand)}
+                    className="px-3 py-1.5 bg-[#238636] hover:bg-[#2ea043] text-white text-xs font-semibold rounded"
+                  >
+                    {copiedSsh === orchestrator.sandboxId ? "Copied!" : "Copy"}
+                  </button>
+                  <span className="text-xs text-[#6e7681]">
+                    Expires: {new Date(sshCredentials[orchestrator.sandboxId].expiresAt).toLocaleTimeString()}
+                  </span>
+                </div>
+              )}
               <iframe
                 src={`/vnc?url=${encodeURIComponent(orchestrator.vncUrl)}&token=${encodeURIComponent(orchestrator.vncToken || "")}`}
                 className="w-full h-[400px] border-0"
@@ -311,6 +374,14 @@ export default function Home() {
                       )}
                     </div>
                     <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => handleGetSsh(worker.sandboxId)}
+                        disabled={loadingSsh.has(worker.sandboxId)}
+                        className="px-3 py-1 bg-[#21262d] hover:bg-[#30363d] disabled:opacity-50
+                                   text-[#58a6ff] text-xs font-semibold rounded border border-[#30363d]"
+                      >
+                        {loadingSsh.has(worker.sandboxId) ? "Loading..." : "SSH"}
+                      </button>
                       <a
                         href={getProxiedVncUrl(worker.vncUrl, worker.vncToken)}
                         target="_blank"
@@ -329,6 +400,20 @@ export default function Home() {
                       </button>
                     </div>
                   </div>
+                  {/* SSH Credentials Display */}
+                  {sshCredentials[worker.sandboxId] && (
+                    <div className="px-3 py-2 bg-[#0d1117] border-t border-[#30363d] flex items-center gap-3">
+                      <code className="flex-1 text-sm text-[#7ee787] font-mono bg-[#161b22] px-3 py-1.5 rounded truncate">
+                        {sshCredentials[worker.sandboxId].sshCommand}
+                      </code>
+                      <button
+                        onClick={() => handleCopySsh(worker.sandboxId, sshCredentials[worker.sandboxId].sshCommand)}
+                        className="px-3 py-1.5 bg-[#238636] hover:bg-[#2ea043] text-white text-xs font-semibold rounded"
+                      >
+                        {copiedSsh === worker.sandboxId ? "Copied!" : "Copy"}
+                      </button>
+                    </div>
+                  )}
                   <iframe
                     src={`/vnc?url=${encodeURIComponent(worker.vncUrl)}&token=${encodeURIComponent(worker.vncToken || "")}`}
                     className="w-full h-[300px] border-0"
