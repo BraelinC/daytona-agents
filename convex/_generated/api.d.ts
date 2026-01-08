@@ -8,8 +8,11 @@
  * @module
  */
 
+import type * as automationTasks from "../automationTasks.js";
+import type * as automationTools from "../automationTools.js";
 import type * as control from "../control.js";
 import type * as daytona from "../daytona.js";
+import type * as geminiAutomation from "../geminiAutomation.js";
 import type * as http from "../http.js";
 import type * as orchestrator from "../orchestrator.js";
 import type * as preloads from "../preloads.js";
@@ -26,8 +29,11 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  automationTasks: typeof automationTasks;
+  automationTools: typeof automationTools;
   control: typeof control;
   daytona: typeof daytona;
+  geminiAutomation: typeof geminiAutomation;
   http: typeof http;
   orchestrator: typeof orchestrator;
   preloads: typeof preloads;

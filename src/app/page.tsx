@@ -112,14 +112,21 @@ export default function Home() {
 
   // Get SSH credentials
   const handleGetSsh = useCallback(async (sandboxId: string) => {
+    console.log("[SSH] Requesting SSH for sandbox:", sandboxId);
     setLoadingSsh(prev => new Set(prev).add(sandboxId));
     try {
       const result = await createSshAccess({ sandboxId });
-      setSshCredentials(prev => ({
-        ...prev,
-        [sandboxId]: { sshCommand: result.sshCommand, expiresAt: result.expiresAt }
-      }));
+      console.log("[SSH] Got credentials for sandbox:", sandboxId, "command:", result.sshCommand);
+      setSshCredentials(prev => {
+        const updated = {
+          ...prev,
+          [sandboxId]: { sshCommand: result.sshCommand, expiresAt: result.expiresAt }
+        };
+        console.log("[SSH] Updated credentials state:", Object.keys(updated));
+        return updated;
+      });
     } catch (error) {
+      console.error("[SSH] Failed for sandbox:", sandboxId, error);
       alert("Failed to get SSH: " + (error as Error).message);
     } finally {
       setLoadingSsh(prev => {
@@ -260,16 +267,19 @@ export default function Home() {
 
               {/* SSH Credentials */}
               {sshCredentials[orch.sandboxId] && (
-                <div className="px-4 py-2 bg-[#0d1117] border-b border-[#30363d] flex items-center gap-2 shrink-0">
-                  <code className="flex-1 text-xs text-[#7ee787] font-mono bg-[#161b22] px-2 py-1 rounded truncate">
-                    {sshCredentials[orch.sandboxId].sshCommand}
-                  </code>
-                  <button
-                    onClick={() => handleCopySsh(orch.sandboxId, sshCredentials[orch.sandboxId].sshCommand)}
-                    className="px-2 py-1 bg-[#238636] hover:bg-[#2ea043] text-white text-xs font-semibold rounded"
-                  >
-                    {copiedSsh === orch.sandboxId ? "Copied!" : "Copy"}
-                  </button>
+                <div className="px-4 py-2 bg-[#0d1117] border-b border-[#30363d] shrink-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-[#8b949e]">SSH for {orch.sandboxId.slice(0, 12)}:</span>
+                    <code className="flex-1 text-xs text-[#7ee787] font-mono bg-[#161b22] px-2 py-1 rounded truncate">
+                      {sshCredentials[orch.sandboxId].sshCommand}
+                    </code>
+                    <button
+                      onClick={() => handleCopySsh(orch.sandboxId, sshCredentials[orch.sandboxId].sshCommand)}
+                      className="px-2 py-1 bg-[#238636] hover:bg-[#2ea043] text-white text-xs font-semibold rounded"
+                    >
+                      {copiedSsh === orch.sandboxId ? "Copied!" : "Copy"}
+                    </button>
+                  </div>
                 </div>
               )}
 
