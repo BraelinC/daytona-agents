@@ -45,18 +45,7 @@ export const setup = action({
     vncToken: string | null | undefined;
     convexId?: string;
   }> => {
-    // Check if orchestrator already exists
-    const existing = await ctx.runQuery(api.sandboxes.getOrchestrator, {});
-    if (existing) {
-      return {
-        status: "exists",
-        sandboxId: existing.sandboxId,
-        vncUrl: existing.vncUrl,
-        vncToken: existing.vncToken,
-      };
-    }
-
-    // Create new orchestrator sandbox
+    // Create new orchestrator sandbox (allow multiple for multi-project support)
     const result = await ctx.runAction(api.daytona.createSandbox, {
       role: "orchestrator",
       cliTool: args.cliTool,
