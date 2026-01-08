@@ -12,6 +12,7 @@ import type * as control from "../control.js";
 import type * as daytona from "../daytona.js";
 import type * as http from "../http.js";
 import type * as orchestrator from "../orchestrator.js";
+import type * as preloads from "../preloads.js";
 import type * as sandboxes from "../sandboxes.js";
 import type * as screenshotActions from "../screenshotActions.js";
 import type * as screenshots from "../screenshots.js";
@@ -28,6 +29,7 @@ declare const fullApi: ApiFromModules<{
   daytona: typeof daytona;
   http: typeof http;
   orchestrator: typeof orchestrator;
+  preloads: typeof preloads;
   sandboxes: typeof sandboxes;
   screenshotActions: typeof screenshotActions;
   screenshots: typeof screenshots;

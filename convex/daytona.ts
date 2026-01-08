@@ -4,12 +4,40 @@ import { action } from "./_generated/server";
 import { v } from "convex/values";
 import { api } from "./_generated/api";
 import { Daytona } from "@daytonaio/sdk";
+import { CLAUDE_MD, TOOLS, SKILLS_MD, DEFAULT_REFERENCE } from "./preloads";
 
 // Model configuration for OpenRouter
 const MODEL_CONFIG = {
   orchestrator: "glm-4.7", // GLM 4.7 - cheap/fast for code generation
   vision: "google/gemini-3-flash-preview", // Gemini 3.0 Flash - vision tasks
 } as const;
+
+// Helper to upload preloaded files to a sandbox
+async function uploadPreloadedFiles(sandbox: Awaited<ReturnType<Daytona["create"]>>, cliTool: string) {
+  // Create directories
+  await sandbox.process.executeCommand("mkdir -p /home/daytona/tools");
+  await sandbox.process.executeCommand("mkdir -p /home/daytona/reference");
+  await sandbox.process.executeCommand("mkdir -p /home/daytona/projects");
+
+  // Upload CLAUDE.md (for Claude Code) to the home directory
+  if (cliTool === "claude-code") {
+    await sandbox.fs.uploadFile(Buffer.from(CLAUDE_MD), "/home/daytona/CLAUDE.md");
+  }
+
+  // Upload tool scripts
+  for (const [name, content] of Object.entries(TOOLS)) {
+    await sandbox.fs.uploadFile(Buffer.from(content), `/home/daytona/tools/${name}`);
+    await sandbox.process.executeCommand(`chmod +x /home/daytona/tools/${name}`);
+  }
+
+  // Upload skills documentation
+  await sandbox.fs.uploadFile(Buffer.from(SKILLS_MD), "/home/daytona/reference/skills.md");
+
+  // Upload default reference files
+  for (const [name, content] of Object.entries(DEFAULT_REFERENCE)) {
+    await sandbox.fs.uploadFile(Buffer.from(content), `/home/daytona/reference/${name}`);
+  }
+}
 
 // Create a new Daytona sandbox with VNC desktop and CLI tool
 export const createSandbox = action({
@@ -59,6 +87,9 @@ export const createSandbox = action({
 
     const cliTool = args.cliTool || "opencode";
 
+    // Upload preloaded files (CLAUDE.md, tools, reference)
+    await uploadPreloadedFiles(sandbox, cliTool);
+
     // Install the selected CLI tool
     if (cliTool === "claude-code") {
       await sandbox.process.executeCommand("npm install -g @anthropic-ai/claude-code@latest");
@@ -83,9 +114,10 @@ export const createSandbox = action({
     await new Promise((resolve) => setTimeout(resolve, 500));
 
     // Type the CLI command and press Enter to start it
+    // Start in /home/daytona/projects directory
     // Claude Code will prompt for browser login, OpenCode uses auth.json
     const cliCommand = cliTool === "claude-code" ? "claude" : "opencode";
-    await sandbox.computerUse.keyboard.type(cliCommand);
+    await sandbox.computerUse.keyboard.type(`cd /home/daytona/projects && ${cliCommand}`);
     await new Promise((resolve) => setTimeout(resolve, 500));
     await sandbox.computerUse.keyboard.press("Return");
 
