@@ -27,6 +27,7 @@ const MAX_ITERATIONS = 50;
 // Screen streaming settings
 const DEFAULT_FRAME_RATE = 4; // 4 FPS default (250ms between frames)
 const MIN_FRAME_INTERVAL_MS = 100; // Max 10 FPS to avoid rate limiting
+const SCREEN_STREAM_INTERVAL_MS = 1000 / DEFAULT_FRAME_RATE; // 250ms at 4 FPS
 
 // Tool call interface
 interface ToolCall {
