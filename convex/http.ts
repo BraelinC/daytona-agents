@@ -573,4 +573,31 @@ http.route({
   }),
 });
 
+// ============================================
+// DUAL-AGENT SANDBOX
+// ============================================
+
+http.route({
+  path: "/api/sandbox/dual/create",
+  method: "OPTIONS",
+  handler: httpAction(async () => new Response(null, { status: 204, headers: corsHeaders })),
+});
+
+http.route({
+  path: "/api/sandbox/dual/create",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    try {
+      const body = await request.json();
+      const result = await ctx.runAction(api.daytona.createDualAgentSandbox, {
+        repoUrl: body.repoUrl,
+        projectName: body.projectName,
+      });
+      return jsonResponse(result);
+    } catch (error) {
+      return errorResponse((error as Error).message);
+    }
+  }),
+});
+
 export default http;

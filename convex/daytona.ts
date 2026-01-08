@@ -5,10 +5,17 @@ import { v } from "convex/values";
 import { api } from "./_generated/api";
 import { Daytona } from "@daytonaio/sdk";
 
+// Model configuration for OpenRouter
+const MODEL_CONFIG = {
+  orchestrator: "glm-4.7", // GLM 4.7 - cheap/fast for code generation
+  vision: "google/gemini-3-flash-preview", // Gemini 3.0 Flash - vision tasks
+} as const;
+
 // Create a new Daytona sandbox with VNC desktop and OpenCode
 export const createSandbox = action({
   args: {
     role: v.optional(v.string()), // "orchestrator" | "worker", defaults to "worker"
+    modelType: v.optional(v.string()), // "orchestrator" | "vision", defaults to "orchestrator"
   },
   handler: async (ctx, args): Promise<{
     sandboxId: string;
@@ -34,8 +41,8 @@ export const createSandbox = action({
     // networkAllowList: "0.0.0.0/0" enables full internet access (all addresses)
     const sandbox = await daytona.create({
       envVars: {
-        // Zen API key for OpenCode (stored in env, will also be written to auth.json)
-        OPENCODE_ZEN_API_KEY: process.env.OPENCODE_ZEN_API_KEY || "",
+        // OpenRouter API key for OpenCode (OpenCode Zen is blocked by Daytona network)
+        OPENCODE_OPENROUTER_API_KEY: process.env.OPENCODE_OPENROUTER_API_KEY || "",
       },
       // Full internet access - allows browser to reach any website
       networkBlockAll: false,
@@ -51,11 +58,11 @@ export const createSandbox = action({
     // Install OpenCode
     await sandbox.process.executeCommand("npm install -g opencode-ai@latest");
 
-    // Create OpenCode auth.json with Zen API key
-    const zenApiKey = process.env.OPENCODE_ZEN_API_KEY || "";
-    if (zenApiKey) {
+    // Create OpenCode auth.json with OpenRouter API key
+    const openRouterApiKey = process.env.OPENCODE_OPENROUTER_API_KEY || "";
+    if (openRouterApiKey) {
       await sandbox.process.executeCommand("mkdir -p ~/.local/share/opencode");
-      const authJson = JSON.stringify({ opencode: { apiKey: zenApiKey } });
+      const authJson = JSON.stringify({ openrouter: { type: "api", key: openRouterApiKey } });
       await sandbox.process.executeCommand(`echo '${authJson}' > ~/.local/share/opencode/auth.json`);
     }
 
@@ -67,12 +74,35 @@ export const createSandbox = action({
     await sandbox.computerUse.mouse.click(500, 350, "left");
     await new Promise((resolve) => setTimeout(resolve, 500));
 
-    // Type opencode
+    // Type opencode and press Enter
     await sandbox.computerUse.keyboard.type("opencode");
     await new Promise((resolve) => setTimeout(resolve, 300));
+    await sandbox.computerUse.keyboard.press("Return");
 
-    // Press Enter (Ctrl+M works in terminals)
-    await sandbox.computerUse.keyboard.press("m", ["ctrl"]);
+    // Wait for OpenCode to fully load
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+
+    // Automate model selection for OpenRouter
+    const modelType = (args.modelType || "orchestrator") as keyof typeof MODEL_CONFIG;
+    const selectedModel = MODEL_CONFIG[modelType] || MODEL_CONFIG.orchestrator;
+
+    if (openRouterApiKey) {
+      // Type /models to open model selector
+      await sandbox.computerUse.keyboard.type("/models");
+      await sandbox.computerUse.keyboard.press("Return");
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Select all and type the specific model name to filter
+      await sandbox.computerUse.keyboard.hotkey("ctrl+a");
+      await sandbox.computerUse.keyboard.type(selectedModel);
+      await sandbox.computerUse.keyboard.press("Return");
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      // Type API key and confirm
+      await sandbox.computerUse.keyboard.type(openRouterApiKey);
+      await sandbox.computerUse.keyboard.press("Return");
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
 
     // Get VNC URL
     const preview = await sandbox.getPreviewLink(6080);
@@ -116,6 +146,7 @@ export const createWithResources = action({
     repoUrl: v.optional(v.string()),
     projectName: v.optional(v.string()),
     autoSetup: v.optional(v.boolean()),
+    modelType: v.optional(v.string()), // "orchestrator" | "vision", defaults to "orchestrator"
   },
   handler: async (ctx, args): Promise<{
     sandboxId: string;
@@ -145,7 +176,7 @@ export const createWithResources = action({
         disk: args.disk || 5,
       },
       envVars: {
-        OPENCODE_ZEN_API_KEY: process.env.OPENCODE_ZEN_API_KEY || "",
+        OPENCODE_OPENROUTER_API_KEY: process.env.OPENCODE_OPENROUTER_API_KEY || "",
         PROJECT_NAME: args.projectName || "",
       },
       // Full internet access - allows browser to reach any website
@@ -160,11 +191,11 @@ export const createWithResources = action({
     // Install OpenCode
     await sandbox.process.executeCommand("npm install -g opencode-ai@latest");
 
-    // Create OpenCode auth.json
-    const zenApiKey = process.env.OPENCODE_ZEN_API_KEY || "";
-    if (zenApiKey) {
+    // Create OpenCode auth.json with OpenRouter
+    const openRouterApiKey = process.env.OPENCODE_OPENROUTER_API_KEY || "";
+    if (openRouterApiKey) {
       await sandbox.process.executeCommand("mkdir -p ~/.local/share/opencode");
-      const authJson = JSON.stringify({ opencode: { apiKey: zenApiKey } });
+      const authJson = JSON.stringify({ openrouter: { type: "api", key: openRouterApiKey } });
       await sandbox.process.executeCommand(`echo '${authJson}' > ~/.local/share/opencode/auth.json`);
     }
 
@@ -204,7 +235,32 @@ export const createWithResources = action({
       await sandbox.computerUse.keyboard.type("opencode");
     }
     await new Promise((resolve) => setTimeout(resolve, 300));
-    await sandbox.computerUse.keyboard.press("m", ["ctrl"]);
+    await sandbox.computerUse.keyboard.press("Return");
+
+    // Wait for OpenCode to fully load
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+
+    // Automate model selection for OpenRouter
+    const modelType = (args.modelType || "orchestrator") as keyof typeof MODEL_CONFIG;
+    const selectedModel = MODEL_CONFIG[modelType] || MODEL_CONFIG.orchestrator;
+
+    if (openRouterApiKey) {
+      // Type /models to open model selector
+      await sandbox.computerUse.keyboard.type("/models");
+      await sandbox.computerUse.keyboard.press("Return");
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Select all and type the specific model name to filter
+      await sandbox.computerUse.keyboard.hotkey("ctrl+a");
+      await sandbox.computerUse.keyboard.type(selectedModel);
+      await sandbox.computerUse.keyboard.press("Return");
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      // Type API key and confirm
+      await sandbox.computerUse.keyboard.type(openRouterApiKey);
+      await sandbox.computerUse.keyboard.press("Return");
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
 
     // Get VNC URL
     const preview = await sandbox.getPreviewLink(6080);
@@ -228,6 +284,149 @@ export const createWithResources = action({
       vncToken,
       convexId: convexId as string,
       repoPath,
+    };
+  },
+});
+
+// Create sandbox with dual OpenCode agents (orchestrator + vision)
+export const createDualAgentSandbox = action({
+  args: {
+    repoUrl: v.optional(v.string()),
+    projectName: v.optional(v.string()),
+  },
+  handler: async (ctx, args): Promise<{
+    sandboxId: string;
+    vncUrl: string;
+    vncToken: string | null;
+    convexId: string;
+  }> => {
+    const apiKey = process.env.DAYTONA_API_KEY;
+    if (!apiKey) {
+      throw new Error("DAYTONA_API_KEY environment variable not set");
+    }
+
+    const daytona = new Daytona({
+      apiKey,
+      apiUrl: process.env.DAYTONA_API_URL || "https://app.daytona.io/api",
+      target: process.env.DAYTONA_TARGET || "us",
+    });
+
+    // Create sandbox with OpenRouter API key
+    const sandbox = await daytona.create({
+      envVars: {
+        OPENCODE_OPENROUTER_API_KEY: process.env.OPENCODE_OPENROUTER_API_KEY || "",
+        PROJECT_NAME: args.projectName || "",
+      },
+      networkBlockAll: false,
+      networkAllowList: "0.0.0.0/0",
+    });
+
+    // Start VNC desktop
+    await sandbox.computerUse.start();
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+
+    // Install OpenCode
+    await sandbox.process.executeCommand("npm install -g opencode-ai@latest");
+
+    // Create OpenCode auth.json with OpenRouter
+    const openRouterApiKey = process.env.OPENCODE_OPENROUTER_API_KEY || "";
+    if (openRouterApiKey) {
+      await sandbox.process.executeCommand("mkdir -p ~/.local/share/opencode");
+      const authJson = JSON.stringify({ openrouter: { type: "api", key: openRouterApiKey } });
+      await sandbox.process.executeCommand(`echo '${authJson}' > ~/.local/share/opencode/auth.json`);
+    }
+
+    // Create IPC directory for communication between agents
+    await sandbox.process.executeCommand("mkdir -p /tmp/opencode-ipc");
+
+    // Clone repo if provided
+    let repoPath: string | undefined;
+    if (args.repoUrl) {
+      const repoName = args.repoUrl.split("/").pop()?.replace(".git", "") || "repo";
+      repoPath = `/home/daytona/projects/${repoName}`;
+      await sandbox.process.executeCommand("mkdir -p /home/daytona/projects");
+      await sandbox.process.executeCommand(`git clone ${args.repoUrl} ${repoPath}`);
+    }
+
+    // === TERMINAL 1: Orchestrator Agent (GLM 4.7) ===
+    await sandbox.computerUse.keyboard.hotkey("ctrl+alt+t");
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+    await sandbox.computerUse.mouse.click(500, 350, "left");
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    // Start opencode in repo directory if available
+    if (repoPath) {
+      await sandbox.computerUse.keyboard.type(`cd ${repoPath} && opencode`);
+    } else {
+      await sandbox.computerUse.keyboard.type("opencode");
+    }
+    await sandbox.computerUse.keyboard.press("Return");
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+
+    // Configure orchestrator model (GLM 4.7)
+    if (openRouterApiKey) {
+      await sandbox.computerUse.keyboard.type("/models");
+      await sandbox.computerUse.keyboard.press("Return");
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await sandbox.computerUse.keyboard.hotkey("ctrl+a");
+      await sandbox.computerUse.keyboard.type(MODEL_CONFIG.orchestrator);
+      await sandbox.computerUse.keyboard.press("Return");
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      await sandbox.computerUse.keyboard.type(openRouterApiKey);
+      await sandbox.computerUse.keyboard.press("Return");
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+
+    // === TERMINAL 2: Vision Agent (Gemini 3.0 Flash) ===
+    await sandbox.computerUse.keyboard.hotkey("ctrl+alt+t");
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+    await sandbox.computerUse.mouse.click(700, 400, "left");
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    // Start opencode
+    if (repoPath) {
+      await sandbox.computerUse.keyboard.type(`cd ${repoPath} && opencode`);
+    } else {
+      await sandbox.computerUse.keyboard.type("opencode");
+    }
+    await sandbox.computerUse.keyboard.press("Return");
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+
+    // Configure vision model (Gemini 3.0 Flash)
+    if (openRouterApiKey) {
+      await sandbox.computerUse.keyboard.type("/models");
+      await sandbox.computerUse.keyboard.press("Return");
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await sandbox.computerUse.keyboard.hotkey("ctrl+a");
+      await sandbox.computerUse.keyboard.type(MODEL_CONFIG.vision);
+      await sandbox.computerUse.keyboard.press("Return");
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      await sandbox.computerUse.keyboard.type(openRouterApiKey);
+      await sandbox.computerUse.keyboard.press("Return");
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+
+    // Get VNC URL
+    const preview = await sandbox.getPreviewLink(6080);
+    const vncUrl = preview.url || String(preview);
+    const vncToken = preview.token || null;
+    const baseUrl = vncUrl.endsWith("/") ? vncUrl.slice(0, -1) : vncUrl;
+
+    // Store in database
+    const convexId = await ctx.runMutation(api.sandboxes.create, {
+      sandboxId: sandbox.id,
+      vncUrl: baseUrl,
+      vncToken: vncToken ?? undefined,
+      role: "orchestrator", // Dual-agent sandbox is an orchestrator
+      repoUrl: args.repoUrl,
+      repoPath,
+    });
+
+    return {
+      sandboxId: sandbox.id,
+      vncUrl,
+      vncToken,
+      convexId: convexId as string,
     };
   },
 });
