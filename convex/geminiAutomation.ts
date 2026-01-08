@@ -219,7 +219,7 @@ async function runGeminiLiveSession(
 
     ws.on("message", async (data: Buffer | string) => {
       try {
-        const text: string = data instanceof Buffer ? data.toString() : data;
+        const text = data instanceof Buffer ? data.toString() : String(data);
         const message = JSON.parse(text);
 
         console.log("[GeminiLive] Message keys:", Object.keys(message));
