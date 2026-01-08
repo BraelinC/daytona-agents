@@ -120,12 +120,15 @@ export const createSandbox = action({
       }
     }
 
-    // Configure SSH to auto-attach to TMUX main session (so SSH shows in VNC)
+    // Unique TMUX session name based on sandbox ID (so each project is identifiable)
+    const sessionName = `s-${sandbox.id.slice(0, 8)}`;
+
+    // Configure SSH to auto-attach to TMUX session (so SSH shows in VNC)
     await sandbox.process.executeCommand(`
-cat >> /home/daytona/.bashrc << 'BASHRC'
+cat >> /home/daytona/.bashrc << BASHRC
 # Auto-attach SSH to visible TMUX session
-if [[ -n "$SSH_CLIENT" ]] && tmux has-session -t main 2>/dev/null; then
-  exec tmux attach -t main
+if [[ -n "\\$SSH_CLIENT" ]] && tmux has-session -t ${sessionName} 2>/dev/null; then
+  exec tmux attach -t ${sessionName}
 fi
 BASHRC
 `);
@@ -141,7 +144,7 @@ BASHRC
     // Type the CLI command inside TMUX session (visible in VNC AND accessible via SSH)
     // Claude Code will prompt for browser login, OpenCode uses auth.json
     const cliCommand = cliTool === "claude-code" ? "claude" : "opencode";
-    await sandbox.computerUse.keyboard.type(`tmux new-session -s main -c /home/daytona/projects '${cliCommand}'`);
+    await sandbox.computerUse.keyboard.type(`tmux new-session -s ${sessionName} -c /home/daytona/projects '${cliCommand}'`);
     await new Promise((resolve) => setTimeout(resolve, 500));
     await sandbox.computerUse.keyboard.press("Return");
 
@@ -248,12 +251,15 @@ export const createWithResources = action({
       await sandbox.process.executeCommand(`echo '${authJson}' > ~/.local/share/opencode/auth.json`);
     }
 
-    // Configure SSH to auto-attach to TMUX main session (so SSH shows in VNC)
+    // Unique TMUX session name based on sandbox ID
+    const sessionName = `s-${sandbox.id.slice(0, 8)}`;
+
+    // Configure SSH to auto-attach to TMUX session (so SSH shows in VNC)
     await sandbox.process.executeCommand(`
-cat >> /home/daytona/.bashrc << 'BASHRC'
+cat >> /home/daytona/.bashrc << BASHRC
 # Auto-attach SSH to visible TMUX session
-if [[ -n "$SSH_CLIENT" ]] && tmux has-session -t main 2>/dev/null; then
-  exec tmux attach -t main
+if [[ -n "\\$SSH_CLIENT" ]] && tmux has-session -t ${sessionName} 2>/dev/null; then
+  exec tmux attach -t ${sessionName}
 fi
 BASHRC
 `);
@@ -289,9 +295,9 @@ BASHRC
 
     // Start OpenCode inside TMUX session (visible in VNC AND accessible via SSH)
     if (repoPath) {
-      await sandbox.computerUse.keyboard.type(`tmux new-session -s main -c ${repoPath} 'opencode'`);
+      await sandbox.computerUse.keyboard.type(`tmux new-session -s ${sessionName} -c ${repoPath} 'opencode'`);
     } else {
-      await sandbox.computerUse.keyboard.type(`tmux new-session -s main 'opencode'`);
+      await sandbox.computerUse.keyboard.type(`tmux new-session -s ${sessionName} 'opencode'`);
     }
     await new Promise((resolve) => setTimeout(resolve, 500));
     await sandbox.computerUse.keyboard.press("Return");
@@ -378,12 +384,16 @@ export const createDualAgentSandbox = action({
       await sandbox.process.executeCommand(`echo '${authJson}' > ~/.local/share/opencode/auth.json`);
     }
 
-    // Configure SSH to auto-attach to TMUX main session (so SSH shows in VNC)
+    // Unique TMUX session names based on sandbox ID
+    const sessionName = `s-${sandbox.id.slice(0, 8)}`;
+    const visionSessionName = `v-${sandbox.id.slice(0, 8)}`;
+
+    // Configure SSH to auto-attach to TMUX session (so SSH shows in VNC)
     await sandbox.process.executeCommand(`
-cat >> /home/daytona/.bashrc << 'BASHRC'
+cat >> /home/daytona/.bashrc << BASHRC
 # Auto-attach SSH to visible TMUX session
-if [[ -n "$SSH_CLIENT" ]] && tmux has-session -t main 2>/dev/null; then
-  exec tmux attach -t main
+if [[ -n "\\$SSH_CLIENT" ]] && tmux has-session -t ${sessionName} 2>/dev/null; then
+  exec tmux attach -t ${sessionName}
 fi
 BASHRC
 `);
@@ -400,17 +410,17 @@ BASHRC
       await sandbox.process.executeCommand(`git clone ${args.repoUrl} ${repoPath}`);
     }
 
-    // === TERMINAL 1: Orchestrator Agent (SSH attaches here via TMUX "main") ===
+    // === TERMINAL 1: Orchestrator Agent (SSH attaches here via TMUX) ===
     await sandbox.computerUse.keyboard.hotkey("ctrl+alt+t");
     await new Promise((resolve) => setTimeout(resolve, 3000));
     await sandbox.computerUse.mouse.click(500, 350, "left");
     await new Promise((resolve) => setTimeout(resolve, 500));
 
-    // Start opencode in TMUX session "main" (visible in VNC AND accessible via SSH)
+    // Start opencode in TMUX session (visible in VNC AND accessible via SSH)
     if (repoPath) {
-      await sandbox.computerUse.keyboard.type(`tmux new-session -s main -c ${repoPath} 'opencode'`);
+      await sandbox.computerUse.keyboard.type(`tmux new-session -s ${sessionName} -c ${repoPath} 'opencode'`);
     } else {
-      await sandbox.computerUse.keyboard.type(`tmux new-session -s main 'opencode'`);
+      await sandbox.computerUse.keyboard.type(`tmux new-session -s ${sessionName} 'opencode'`);
     }
     await new Promise((resolve) => setTimeout(resolve, 500));
     await sandbox.computerUse.keyboard.press("Return");
@@ -422,11 +432,11 @@ BASHRC
     await sandbox.computerUse.mouse.click(700, 400, "left");
     await new Promise((resolve) => setTimeout(resolve, 500));
 
-    // Start opencode in TMUX session "vision"
+    // Start opencode in TMUX session for vision
     if (repoPath) {
-      await sandbox.computerUse.keyboard.type(`tmux new-session -s vision -c ${repoPath} 'opencode'`);
+      await sandbox.computerUse.keyboard.type(`tmux new-session -s ${visionSessionName} -c ${repoPath} 'opencode'`);
     } else {
-      await sandbox.computerUse.keyboard.type(`tmux new-session -s vision 'opencode'`);
+      await sandbox.computerUse.keyboard.type(`tmux new-session -s ${visionSessionName} 'opencode'`);
     }
     await new Promise((resolve) => setTimeout(resolve, 500));
     await sandbox.computerUse.keyboard.press("Return");
