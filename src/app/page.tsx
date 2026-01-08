@@ -10,28 +10,32 @@ const VNC_PROXY_URL = process.env.NEXT_PUBLIC_VNC_PROXY_URL || "";
 // Project presets
 const PROJECT_PRESETS = [
   {
+    name: "Claude Code",
+    repo: "",
+    memory: 4,
+    cliTool: "claude-code",
+    description: "Anthropic's Claude Code CLI - uses Anthropic API directly"
+  },
+  {
+    name: "OpenCode",
+    repo: "",
+    memory: 4,
+    cliTool: "opencode",
+    description: "OpenCode with OpenRouter - cheap models like GLM 4.7"
+  },
+  {
     name: "Coding - Planner",
     repo: "https://github.com/BraelinC/planner",
     memory: 4,
+    cliTool: "opencode",
     description: "Bun monorepo with browser for localhost dev server"
-  },
-  {
-    name: "Coding - Blank",
-    repo: "",
-    memory: 4,
-    description: "Empty sandbox for any repo - 4GB for builds"
   },
   {
     name: "School Agent",
     repo: "",
     memory: 4,
+    cliTool: "claude-code",
     description: "Full internet access - assignments, quizzes, web tasks"
-  },
-  {
-    name: "Test Agent",
-    repo: "",
-    memory: 2,
-    description: "Quick AI capability testing - minimal resources"
   },
 ];
 
@@ -73,7 +77,8 @@ export default function Home() {
   const handleSetupOrchestrator = async () => {
     setIsSettingUp(true);
     try {
-      await setupOrchestrator({});
+      const preset = PROJECT_PRESETS[selectedPreset];
+      await setupOrchestrator({ cliTool: preset.cliTool });
     } catch (error) {
       console.error("Failed to setup orchestrator:", error);
       alert("Failed to setup: " + (error as Error).message);

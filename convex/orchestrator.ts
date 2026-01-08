@@ -35,8 +35,10 @@ Always use the appropriate tool for each step.`;
 
 // Initialize the orchestrator sandbox
 export const setup = action({
-  args: {},
-  handler: async (ctx): Promise<{
+  args: {
+    cliTool: v.optional(v.string()), // "opencode" | "claude-code"
+  },
+  handler: async (ctx, args): Promise<{
     status: string;
     sandboxId: string;
     vncUrl: string;
@@ -57,6 +59,7 @@ export const setup = action({
     // Create new orchestrator sandbox
     const result = await ctx.runAction(api.daytona.createSandbox, {
       role: "orchestrator",
+      cliTool: args.cliTool,
     });
 
     // Upload orchestrator tools

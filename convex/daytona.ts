@@ -11,11 +11,11 @@ const MODEL_CONFIG = {
   vision: "google/gemini-3-flash-preview", // Gemini 3.0 Flash - vision tasks
 } as const;
 
-// Create a new Daytona sandbox with VNC desktop and OpenCode
+// Create a new Daytona sandbox with VNC desktop and CLI tool
 export const createSandbox = action({
   args: {
     role: v.optional(v.string()), // "orchestrator" | "worker", defaults to "worker"
-    modelType: v.optional(v.string()), // "orchestrator" | "vision", defaults to "orchestrator"
+    cliTool: v.optional(v.string()), // "opencode" | "claude-code", defaults to "opencode"
   },
   handler: async (ctx, args): Promise<{
     sandboxId: string;
@@ -55,15 +55,21 @@ export const createSandbox = action({
     // Wait for VNC to initialize
     await new Promise((resolve) => setTimeout(resolve, 5000));
 
-    // Install OpenCode
-    await sandbox.process.executeCommand("npm install -g opencode-ai@latest");
+    const cliTool = args.cliTool || "opencode";
 
-    // Create OpenCode auth.json with OpenRouter API key
-    const openRouterApiKey = process.env.OPENCODE_OPENROUTER_API_KEY || "";
-    if (openRouterApiKey) {
-      await sandbox.process.executeCommand("mkdir -p ~/.local/share/opencode");
-      const authJson = JSON.stringify({ openrouter: { type: "api", key: openRouterApiKey } });
-      await sandbox.process.executeCommand(`echo '${authJson}' > ~/.local/share/opencode/auth.json`);
+    // Install the selected CLI tool
+    if (cliTool === "claude-code") {
+      await sandbox.process.executeCommand("npm install -g @anthropic-ai/claude-code@latest");
+      // User will authenticate via browser when claude prompts
+    } else {
+      await sandbox.process.executeCommand("npm install -g opencode-ai@latest");
+      // Create OpenCode auth.json with OpenRouter API key
+      const openRouterApiKey = process.env.OPENCODE_OPENROUTER_API_KEY || "";
+      if (openRouterApiKey) {
+        await sandbox.process.executeCommand("mkdir -p ~/.local/share/opencode");
+        const authJson = JSON.stringify({ openrouter: { type: "api", key: openRouterApiKey } });
+        await sandbox.process.executeCommand(`echo '${authJson}' > ~/.local/share/opencode/auth.json`);
+      }
     }
 
     // Open terminal with Ctrl+Alt+T
@@ -74,12 +80,14 @@ export const createSandbox = action({
     await sandbox.computerUse.mouse.click(500, 350, "left");
     await new Promise((resolve) => setTimeout(resolve, 500));
 
-    // Type opencode and press Enter to start it
-    await sandbox.computerUse.keyboard.type("opencode");
+    // Type the CLI command and press Enter to start it
+    // Claude Code will prompt for browser login, OpenCode uses auth.json
+    const cliCommand = cliTool === "claude-code" ? "claude" : "opencode";
+    await sandbox.computerUse.keyboard.type(cliCommand);
     await new Promise((resolve) => setTimeout(resolve, 500));
     await sandbox.computerUse.keyboard.press("Return");
 
-    // Wait for OpenCode to fully load (needs more time to initialize)
+    // Wait for CLI to fully load
     await new Promise((resolve) => setTimeout(resolve, 10000));
 
     // Get VNC URL first (model config can happen after user sees the sandbox)
