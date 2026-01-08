@@ -13,6 +13,9 @@ interface SshCredentials {
 
 const VNC_PROXY_URL = process.env.NEXT_PUBLIC_VNC_PROXY_URL || "";
 
+// Local VNC URL (your home PC via Cloudflare tunnel)
+const LOCAL_VNC_URL = "https://vnc.braelin.uk/vnc.html?autoconnect=true&resize=scale";
+
 // Project presets
 const PROJECT_PRESETS = [
   { name: "Claude Code", cliTool: "claude-code", description: "Anthropic's Claude Code CLI" },
@@ -61,8 +64,8 @@ export default function Home() {
   const touchEndX = useRef(0);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Total slides = orchestrators + 1 (for "new project" card)
-  const totalSlides = (orchestrators?.length || 0) + 1;
+  // Total slides = orchestrators + 1 (Local PC) + 1 (new project card)
+  const totalSlides = (orchestrators?.length || 0) + 2;
 
   // Ensure currentIndex is valid when orchestrators change
   useEffect(() => {
@@ -301,6 +304,39 @@ export default function Home() {
               </div>
             </div>
           ))}
+
+          {/* Local PC Card */}
+          <div className="w-full h-full shrink-0 flex flex-col">
+            {/* Local PC Header */}
+            <div className="px-4 py-3 bg-[#21262d] flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 bg-[#238636] text-white text-xs rounded font-medium">
+                  LOCAL PC
+                </span>
+                <span className="text-[#7ee787] text-sm font-mono">
+                  vnc.braelin.uk
+                </span>
+              </div>
+              <a
+                href={LOCAL_VNC_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3 py-1.5 bg-[#21262d] hover:bg-[#30363d]
+                           text-[#8b949e] text-xs font-semibold rounded border border-[#30363d]"
+              >
+                Fullscreen
+              </a>
+            </div>
+
+            {/* Local VNC Frame */}
+            <div className="flex-1 min-h-0">
+              <iframe
+                src={LOCAL_VNC_URL}
+                className="w-full h-full border-0"
+                allow="clipboard-read; clipboard-write; fullscreen"
+              />
+            </div>
+          </div>
 
           {/* New Project Card */}
           <div className="w-full h-full shrink-0 flex flex-col items-center justify-center p-6">
