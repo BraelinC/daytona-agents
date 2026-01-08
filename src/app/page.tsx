@@ -48,6 +48,8 @@ export default function Home() {
   // State
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isSettingUp, setIsSettingUp] = useState(false);
+  const [setupStatus, setSetupStatus] = useState<string>("");
+  const [setupError, setSetupError] = useState<string | null>(null);
   const [selectedPreset, setSelectedPreset] = useState(0);
   const [stoppingIds, setStoppingIds] = useState<Set<string>>(new Set());
   const [sshCredentials, setSshCredentials] = useState<Record<string, SshCredentials>>({});
@@ -138,12 +140,22 @@ export default function Home() {
   // Create new project
   const handleCreateProject = async () => {
     setIsSettingUp(true);
+    setSetupError(null);
+    setSetupStatus("Starting sandbox creation...");
     try {
       const preset = PROJECT_PRESETS[selectedPreset];
-      await setupOrchestrator({ cliTool: preset.cliTool });
-      // After creating, stay on new project card (it will be added to list)
+      setSetupStatus(`Creating ${preset.name} sandbox...`);
+      const result = await setupOrchestrator({ cliTool: preset.cliTool });
+      setSetupStatus(`Success! Sandbox ${result.sandboxId.slice(0, 8)} created`);
+      // Navigate to the new project after a brief delay
+      setTimeout(() => {
+        setSetupStatus("");
+      }, 2000);
     } catch (error) {
-      alert("Failed to create project: " + (error as Error).message);
+      const errMsg = (error as Error).message;
+      setSetupError(errMsg);
+      setSetupStatus("");
+      console.error("Setup failed:", error);
     } finally {
       setIsSettingUp(false);
     }
@@ -313,10 +325,25 @@ export default function Home() {
                 {isSettingUp ? "Creating Project..." : "Create Project"}
               </button>
 
-              {isSettingUp && (
-                <p className="text-center text-sm text-[#8b949e]">
-                  This may take a minute...
-                </p>
+              {/* Status Log */}
+              {setupStatus && (
+                <div className="bg-[#161b22] border border-[#30363d] rounded-lg p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="animate-spin w-5 h-5 border-2 border-[#58a6ff] border-t-transparent rounded-full" />
+                    <p className="text-sm text-[#58a6ff]">{setupStatus}</p>
+                  </div>
+                  <p className="text-xs text-[#8b949e] mt-2">
+                    This may take 1-2 minutes (installing TMUX, configuring SSH, starting CLI)
+                  </p>
+                </div>
+              )}
+
+              {/* Error Display */}
+              {setupError && (
+                <div className="bg-[#3d1418] border border-[#f85149] rounded-lg p-4">
+                  <p className="text-sm text-[#f85149] font-medium">Setup Failed</p>
+                  <p className="text-xs text-[#f0f6fc] mt-1 font-mono break-all">{setupError}</p>
+                </div>
               )}
             </div>
           </div>
