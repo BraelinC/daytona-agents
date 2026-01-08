@@ -47,6 +47,8 @@ export const createSandbox = action({
       // Full internet access - allows browser to reach any website
       networkBlockAll: false,
       networkAllowList: "0.0.0.0/0",
+      // Disable auto-stop (default is 15 min). Set to 0 to keep running until manually stopped.
+      autoStopInterval: 0,
     });
 
     // Start VNC desktop
@@ -168,6 +170,8 @@ export const createWithResources = action({
       // Full internet access - allows browser to reach any website
       networkBlockAll: false,
       networkAllowList: "0.0.0.0/0",
+      // Disable auto-stop (default is 15 min)
+      autoStopInterval: 0,
     });
 
     // Start VNC desktop
@@ -283,6 +287,8 @@ export const createDualAgentSandbox = action({
       },
       networkBlockAll: false,
       networkAllowList: "0.0.0.0/0",
+      // Disable auto-stop (default is 15 min)
+      autoStopInterval: 0,
     });
 
     // Start VNC desktop
