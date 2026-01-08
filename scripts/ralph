@@ -1,0 +1,145 @@
+#!/bin/bash
+# Ralph CLI - Connect to Daytona sandbox and run Ralph Wiggum loops
+#
+# Usage:
+#   ./ralph --sandbox <id> "Your task description" --until "DONE" --max 50
+#   ./ralph --sandbox <id> --plan ./my-task.md --until "COMPLETE"
+
+set -e
+
+# Configuration
+CONVEX_URL="${CONVEX_URL:-https://grateful-anteater-172.convex.cloud}"
+API_BASE="${CONVEX_URL/convex.cloud/convex.site}"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Parse arguments
+SANDBOX_ID=""
+TASK=""
+PROMISE="TASK_COMPLETE"
+MAX_ITERATIONS=50
+PLAN_FILE=""
+
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --sandbox|-s)
+      SANDBOX_ID="$2"
+      shift 2
+      ;;
+    --until|-u)
+      PROMISE="$2"
+      shift 2
+      ;;
+    --max|-m)
+      MAX_ITERATIONS="$2"
+      shift 2
+      ;;
+    --plan|-p)
+      PLAN_FILE="$2"
+      shift 2
+      ;;
+    --help|-h)
+      echo "Ralph CLI - Run autonomous Claude Code loops on Daytona sandboxes"
+      echo ""
+      echo "Usage:"
+      echo "  ./ralph --sandbox <id> \"Your task\" --until \"DONE\" --max 50"
+      echo "  ./ralph --sandbox <id> --plan ./task.md --until \"COMPLETE\""
+      echo ""
+      echo "Options:"
+      echo "  --sandbox, -s   Sandbox ID (required)"
+      echo "  --until, -u     Promise string that signals completion (default: TASK_COMPLETE)"
+      echo "  --max, -m       Maximum iterations (default: 50)"
+      echo "  --plan, -p      Path to a markdown file with the task description"
+      echo "  --help, -h      Show this help"
+      exit 0
+      ;;
+    *)
+      # Assume it's the task description
+      TASK="$1"
+      shift
+      ;;
+  esac
+done
+
+# Validate arguments
+if [ -z "$SANDBOX_ID" ]; then
+  echo -e "${RED}Error: --sandbox is required${NC}"
+  exit 1
+fi
+
+# Load task from plan file if provided
+if [ -n "$PLAN_FILE" ]; then
+  if [ ! -f "$PLAN_FILE" ]; then
+    echo -e "${RED}Error: Plan file not found: $PLAN_FILE${NC}"
+    exit 1
+  fi
+  TASK=$(cat "$PLAN_FILE")
+fi
+
+if [ -z "$TASK" ]; then
+  echo -e "${RED}Error: Task description is required${NC}"
+  exit 1
+fi
+
+echo -e "${BLUE}=== Ralph CLI ===${NC}"
+echo -e "Sandbox: ${GREEN}$SANDBOX_ID${NC}"
+echo -e "Promise: ${YELLOW}$PROMISE${NC}"
+echo -e "Max iterations: ${YELLOW}$MAX_ITERATIONS${NC}"
+echo ""
+
+# Step 1: Get SSH credentials
+echo -e "${BLUE}[1/3] Getting SSH credentials...${NC}"
+SSH_RESPONSE=$(curl -s -X POST "${API_BASE}/api/sandbox/ssh" \
+  -H "Content-Type: application/json" \
+  -d "{\"sandboxId\": \"$SANDBOX_ID\", \"expiresInMinutes\": 1440}")
+
+# Parse SSH credentials
+SSH_HOST=$(echo "$SSH_RESPONSE" | jq -r '.host // empty')
+SSH_PORT=$(echo "$SSH_RESPONSE" | jq -r '.port // empty')
+SSH_USER=$(echo "$SSH_RESPONSE" | jq -r '.username // empty')
+SSH_TOKEN=$(echo "$SSH_RESPONSE" | jq -r '.token // empty')
+
+if [ -z "$SSH_HOST" ] || [ -z "$SSH_TOKEN" ]; then
+  echo -e "${RED}Error: Failed to get SSH credentials${NC}"
+  echo "$SSH_RESPONSE"
+  exit 1
+fi
+
+echo -e "${GREEN}Got SSH access: $SSH_USER@$SSH_HOST:$SSH_PORT${NC}"
+
+# Step 2: Build the ralph-loop command
+echo -e "${BLUE}[2/3] Preparing Ralph loop command...${NC}"
+
+# Escape the task for shell
+ESCAPED_TASK=$(printf '%s' "$TASK" | sed "s/'/'\\\\''/g")
+
+RALPH_CMD="/ralph:ralph-loop '$ESCAPED_TASK
+
+When complete, output: <promise>$PROMISE</promise>' --max-iterations $MAX_ITERATIONS --completion-promise '$PROMISE'"
+
+echo -e "Command: ${YELLOW}$RALPH_CMD${NC}"
+echo ""
+
+# Step 3: SSH and run
+echo -e "${BLUE}[3/3] Connecting via SSH and starting Ralph loop...${NC}"
+echo -e "${YELLOW}(You may need to enter the SSH token as password)${NC}"
+echo ""
+
+# Use sshpass if available, otherwise prompt for password
+if command -v sshpass &> /dev/null; then
+  sshpass -p "$SSH_TOKEN" ssh -o "StrictHostKeyChecking=no" -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" \
+    "cd /home/daytona/projects && claude --print \"$RALPH_CMD\""
+else
+  echo -e "${YELLOW}SSH Token (paste as password): $SSH_TOKEN${NC}"
+  echo ""
+  ssh -o "StrictHostKeyChecking=no" -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" \
+    "cd /home/daytona/projects && echo '$RALPH_CMD' | claude"
+fi
+
+echo ""
+echo -e "${GREEN}=== Ralph loop complete ===${NC}"

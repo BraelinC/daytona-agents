@@ -600,4 +600,77 @@ http.route({
   }),
 });
 
+// ============================================
+// SSH ACCESS
+// ============================================
+
+http.route({
+  path: "/api/sandbox/ssh",
+  method: "OPTIONS",
+  handler: httpAction(async () => new Response(null, { status: 204, headers: corsHeaders })),
+});
+
+http.route({
+  path: "/api/sandbox/ssh",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    try {
+      const body = await request.json();
+      const result = await ctx.runAction(api.ssh.createSshAccess, {
+        sandboxId: body.sandboxId,
+        expiresInMinutes: body.expiresInMinutes,
+      });
+      return jsonResponse(result);
+    } catch (error) {
+      return errorResponse((error as Error).message);
+    }
+  }),
+});
+
+http.route({
+  path: "/api/sandbox/ssh/validate",
+  method: "OPTIONS",
+  handler: httpAction(async () => new Response(null, { status: 204, headers: corsHeaders })),
+});
+
+http.route({
+  path: "/api/sandbox/ssh/validate",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    try {
+      const body = await request.json();
+      const result = await ctx.runAction(api.ssh.validateSshAccess, {
+        sandboxId: body.sandboxId,
+        token: body.token,
+      });
+      return jsonResponse(result);
+    } catch (error) {
+      return errorResponse((error as Error).message);
+    }
+  }),
+});
+
+http.route({
+  path: "/api/sandbox/ssh/revoke",
+  method: "OPTIONS",
+  handler: httpAction(async () => new Response(null, { status: 204, headers: corsHeaders })),
+});
+
+http.route({
+  path: "/api/sandbox/ssh/revoke",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    try {
+      const body = await request.json();
+      const result = await ctx.runAction(api.ssh.revokeSshAccess, {
+        sandboxId: body.sandboxId,
+        token: body.token,
+      });
+      return jsonResponse(result);
+    } catch (error) {
+      return errorResponse((error as Error).message);
+    }
+  }),
+});
+
 export default http;

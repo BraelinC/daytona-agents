@@ -94,6 +94,18 @@ export const createSandbox = action({
     if (cliTool === "claude-code") {
       await sandbox.process.executeCommand("npm install -g @anthropic-ai/claude-code@latest");
       // User will authenticate via browser when claude prompts
+
+      // Pre-install Ralph plugin for autonomous loops
+      await sandbox.process.executeCommand("git clone https://github.com/dial481/ralph ~/claude-plugins/ralph || true");
+      await sandbox.process.executeCommand("mkdir -p ~/claude-plugins/.claude-plugin");
+      await sandbox.process.executeCommand(`echo '{"name":"local","owner":{"name":"You"}}' > ~/claude-plugins/.claude-plugin/marketplace.json`);
+
+      // Create Claude config to register the plugin marketplace
+      await sandbox.process.executeCommand("mkdir -p ~/.claude");
+      const claudeConfig = JSON.stringify({
+        plugins: { marketplaces: ["~/claude-plugins"] }
+      });
+      await sandbox.process.executeCommand(`echo '${claudeConfig}' > ~/.claude/config.json`);
     } else {
       await sandbox.process.executeCommand("npm install -g opencode-ai@latest");
       // Create OpenCode auth.json with OpenRouter API key

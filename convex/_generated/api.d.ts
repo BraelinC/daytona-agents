@@ -16,6 +16,7 @@ import type * as preloads from "../preloads.js";
 import type * as sandboxes from "../sandboxes.js";
 import type * as screenshotActions from "../screenshotActions.js";
 import type * as screenshots from "../screenshots.js";
+import type * as ssh from "../ssh.js";
 import type * as workers from "../workers.js";
 
 import type {
@@ -33,6 +34,7 @@ declare const fullApi: ApiFromModules<{
   sandboxes: typeof sandboxes;
   screenshotActions: typeof screenshotActions;
   screenshots: typeof screenshots;
+  ssh: typeof ssh;
   workers: typeof workers;
 }>;
 
