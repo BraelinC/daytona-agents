@@ -483,6 +483,7 @@ export const getTaskStatus = action({
   args: {
     taskId: v.id("automationTasks"),
   },
+  returns: v.any(),
   handler: async (ctx, args) => {
     return await ctx.runQuery(api.automationTasks.get, { taskId: args.taskId });
   },
