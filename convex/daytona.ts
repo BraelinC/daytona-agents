@@ -90,6 +90,9 @@ export const createSandbox = action({
     // Upload preloaded files (CLAUDE.md, tools, reference)
     await uploadPreloadedFiles(sandbox, cliTool);
 
+    // Install TMUX for SSH session sharing
+    await sandbox.process.executeCommand("apt-get update && apt-get install -y tmux");
+
     // Install the selected CLI tool
     if (cliTool === "claude-code") {
       await sandbox.process.executeCommand("npm install -g @anthropic-ai/claude-code@latest");
@@ -231,6 +234,9 @@ export const createWithResources = action({
     await sandbox.computerUse.start();
     await new Promise((resolve) => setTimeout(resolve, 5000));
 
+    // Install TMUX for SSH session sharing
+    await sandbox.process.executeCommand("apt-get update && apt-get install -y tmux");
+
     // Install OpenCode
     await sandbox.process.executeCommand("npm install -g opencode-ai@latest");
 
@@ -357,6 +363,9 @@ export const createDualAgentSandbox = action({
     // Start VNC desktop
     await sandbox.computerUse.start();
     await new Promise((resolve) => setTimeout(resolve, 5000));
+
+    // Install TMUX for SSH session sharing
+    await sandbox.process.executeCommand("apt-get update && apt-get install -y tmux");
 
     // Install OpenCode
     await sandbox.process.executeCommand("npm install -g opencode-ai@latest");
